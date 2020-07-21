@@ -1,8 +1,11 @@
 *.iml
-.gradle
-/local.properties
+.gradle/
+local.properties
 .idea/
-/build
-/captures
+build/
+captures/
 .externalNativeBuild
 .cxx
+app/build/
+
+app/src/main/res/raw/drive_api_credentials.json
