@@ -14,8 +14,8 @@ import java.util.concurrent.Executors;
 
 public class SongFinder
 {
-    private final Executor mExecutor;
-    private final DriveWrapper mDrive;
+    public final Executor mExecutor;  // FIXME
+    public final DriveWrapper mDrive;  // FIXME
 
     public SongFinder()
     {

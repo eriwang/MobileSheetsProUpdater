@@ -6,10 +6,12 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.List;
 
-class DriveWrapper
+public class DriveWrapper  // FIXME
 {
     private Drive mDrive;
 
@@ -30,6 +32,13 @@ class DriveWrapper
         return mDrive.files().get(fileId)
                 .setFields("id, name, mimeType, parents, modifiedTime")
                 .execute();
+    }
+
+    public void downloadFile(String fileId, OutputStream outputStream) throws IOException
+    {
+//        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        mDrive.files().get(fileId).executeMediaAndDownloadTo(outputStream);
+//        return outputStream;
     }
 
     public List<File> listDirectory(String directoryId) throws IOException
