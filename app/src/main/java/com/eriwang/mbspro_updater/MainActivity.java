@@ -1,10 +1,15 @@
 package com.eriwang.mbspro_updater;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.documentfile.provider.DocumentFile;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.DocumentsContract;
+import android.provider.OpenableColumns;
 import android.util.Log;
 
 import com.eriwang.mbspro_updater.drive.Song;
@@ -17,11 +22,13 @@ import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccoun
 import com.google.api.services.drive.DriveScopes;
 
 import java.util.Collections;
+import java.util.Objects;
 
 public class MainActivity extends AppCompatActivity
 {
     private static final String TAG = "Main";
     private static final int REQUEST_CODE_SIGN_IN = 1;
+    private static final int REQUEST_CODE_OPEN_DOC_TREE = 2;
 
     private static final String TEST_FOLDER_ROOT_ID = "11HTp4Y8liv9Oc0Sof0bxvlsGSLmQAvl4";
 
@@ -35,7 +42,7 @@ public class MainActivity extends AppCompatActivity
 
         mSongFinder = new SongFinder();
 
-        findViewById(R.id.button).setOnClickListener(view -> {
+        findViewById(R.id.log_drive_files_btn).setOnClickListener(view -> {
             mSongFinder.findSongsRecursivelyInDirectory(TEST_FOLDER_ROOT_ID)
                     .addOnSuccessListener(songs -> {
                         for (Song song : songs)
@@ -48,6 +55,16 @@ public class MainActivity extends AppCompatActivity
                         Log.d(TAG, Log.getStackTraceString(exception));
                     });
         });
+        findViewById(R.id.create_tmp_file_btn).setOnClickListener(view -> {
+            // TODO: should explicitly tell user what they should be selecting. also sanity check after that the db
+            //       is there
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    .addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+
+            // TODO: specify initial URI?
+            startActivityForResult(intent, REQUEST_CODE_OPEN_DOC_TREE);
+        });
 
         // TODO: should be more user friendly in the future
         requestSignIn();
@@ -56,15 +73,25 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent resultData)
     {
-        if (requestCode != REQUEST_CODE_SIGN_IN)
+        switch (requestCode)
         {
-            throw new RuntimeException(String.format("Unknown request code %d", requestCode));
-        }
+        case REQUEST_CODE_SIGN_IN:
+            // TODO: errors
+            if (resultCode == Activity.RESULT_OK && resultData != null)
+            {
+                handleSignInResult(resultData);
+            }
+            break;
+        case REQUEST_CODE_OPEN_DOC_TREE:
+            // TODO: errors
+            if (resultCode == Activity.RESULT_OK && resultData != null)
+            {
+                handleOpenDocTreeResult(resultData);
+            }
+            break;
 
-        // TODO: errors?
-        if (resultCode == Activity.RESULT_OK && resultData != null)
-        {
-            handleSignInResult(resultData);
+        default:
+            throw new RuntimeException(String.format("Unknown request code %d", requestCode));
         }
 
         super.onActivityResult(requestCode, resultCode, resultData);
@@ -96,5 +123,21 @@ public class MainActivity extends AppCompatActivity
                     mSongFinder.setCredentialAndInitializeDrive(credential);
                 })
                 .addOnFailureListener(exception -> Log.e(TAG, "Unable to sign in.", exception));
+    }
+
+    private void handleOpenDocTreeResult(Intent result)
+    {
+        final Uri uri = result.getData();
+        if (uri == null)
+        {
+            throw new RuntimeException("Null uri");
+        }
+
+        Log.d(TAG, uri.toString());
+        DocumentFile docFile = DocumentFile.fromTreeUri(this, uri);
+        for (DocumentFile f : docFile.listFiles())
+        {
+            Log.d(TAG, f.getName());
+        }
     }
 }
