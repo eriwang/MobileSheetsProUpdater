@@ -7,31 +7,25 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 
+import com.eriwang.mbspro_updater.drive.DriveWrapper;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.common.api.Scope;
-import com.google.android.gms.tasks.Task;
-import com.google.android.gms.tasks.Tasks;
-import com.google.api.client.extensions.android.http.AndroidHttp;
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
-import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.File;
-import com.google.api.services.drive.model.FileList;
 
 import java.util.Collections;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity
 {
     private static final String TAG = "Main";
     private static final int REQUEST_CODE_SIGN_IN = 1;
 
-    private Executor mExecutor = Executors.newSingleThreadExecutor();
-    private Drive mDrive;
+    private static final String TEST_FOLDER_ROOT_ID = "11HTp4Y8liv9Oc0Sof0bxvlsGSLmQAvl4";
+
+    private DriveWrapper mDrive;
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -39,32 +33,39 @@ public class MainActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-            findViewById(R.id.button).setOnClickListener(view -> {
-                Task<FileList> tasks = Tasks.call(mExecutor, () -> mDrive.files().list().setSpaces("drive").execute());
-                tasks.addOnSuccessListener(fileList -> {
-                    for (File file : fileList.getFiles())
-                    {
-                        Log.d(TAG, file.getName());
-                    }
-                });
-            });
+        mDrive = new DriveWrapper();
 
+        findViewById(R.id.button).setOnClickListener(view -> {
+            mDrive.recursivelyListDirectory(TEST_FOLDER_ROOT_ID).addOnSuccessListener(fileList -> {
+                for (File file : fileList)
+                {
+                    final boolean isGenPdf = file.getMimeType().equals("application/pdf") &&
+                            file.getName().endsWith(".gen.pdf");
+                    final boolean isAudioFile = file.getMimeType().startsWith("audio");
+                    if (isGenPdf || isAudioFile)
+                    {
+                        Log.d(TAG, String.format("name=%s, mimeType=%s", file.getName(), file.getMimeType()));
+                    }
+                }
+            });
+        });
+
+        // TODO: should be more user friendly in the future
         requestSignIn();
     }
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent resultData)
     {
-        switch (requestCode)
+        if (requestCode != REQUEST_CODE_SIGN_IN)
         {
-            case REQUEST_CODE_SIGN_IN:
-                if (resultCode == Activity.RESULT_OK && resultData != null)
-                {
-                    handleSignInResult(resultData);
-                }
-                break;
-            default:
-                throw new RuntimeException("Unknown request code");
+            throw new RuntimeException(String.format("Unknown request code %d", requestCode));
+        }
+
+        // TODO: errors?
+        if (resultCode == Activity.RESULT_OK && resultData != null)
+        {
+            handleSignInResult(resultData);
         }
 
         super.onActivityResult(requestCode, resultCode, resultData);
@@ -93,10 +94,7 @@ public class MainActivity extends AppCompatActivity
                     GoogleAccountCredential credential = GoogleAccountCredential.usingOAuth2(
                             this, Collections.singletonList(DriveScopes.DRIVE));
                     credential.setSelectedAccount(googleAccount.getAccount());
-                    mDrive = new Drive.Builder(
-                                AndroidHttp.newCompatibleTransport(), new GsonFactory(), credential)
-                            .setApplicationName("MobileSheetsPro Updater")
-                            .build();
+                    mDrive.initializeWithCredential(credential);
                 })
                 .addOnFailureListener(exception -> Log.e(TAG, "Unable to sign in.", exception));
     }
