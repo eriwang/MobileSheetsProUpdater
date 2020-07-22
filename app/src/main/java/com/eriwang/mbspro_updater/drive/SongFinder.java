@@ -54,11 +54,14 @@ public class SongFinder
                 songs.addAll(findSongsRecursivelyInDirectoryForeground(file));
             }
         }
-        if (!dirIsSong)
-        {
-            return songs;
-        }
 
+        return (dirIsSong) ?
+                Collections.singletonList(createSongFromDirContents(directory.getName(), dirContents)) :
+                songs;
+    }
+
+    private static Song createSongFromDirContents(String dirName, List<File> dirContents)
+    {
         ArrayList<File> pdfFiles = new ArrayList<>();
         ArrayList<File> audioFiles = new ArrayList<>();
         for (File file : dirContents)
@@ -72,7 +75,6 @@ public class SongFinder
                 audioFiles.add(file);
             }
         }
-
-        return Collections.singletonList(new Song(directory.getName(), pdfFiles, audioFiles));
+        return new Song(dirName, pdfFiles, audioFiles);
     }
 }
