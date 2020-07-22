@@ -7,14 +7,14 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 
-import com.eriwang.mbspro_updater.drive.DriveWrapper;
+import com.eriwang.mbspro_updater.drive.Song;
+import com.eriwang.mbspro_updater.drive.SongFinder;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.common.api.Scope;
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
 import com.google.api.services.drive.DriveScopes;
-import com.google.api.services.drive.model.File;
 
 import java.util.Collections;
 
@@ -25,7 +25,7 @@ public class MainActivity extends AppCompatActivity
 
     private static final String TEST_FOLDER_ROOT_ID = "11HTp4Y8liv9Oc0Sof0bxvlsGSLmQAvl4";
 
-    private DriveWrapper mDrive;
+    private SongFinder mSongFinder;
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -33,21 +33,20 @@ public class MainActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mDrive = new DriveWrapper();
+        mSongFinder = new SongFinder();
 
         findViewById(R.id.button).setOnClickListener(view -> {
-            mDrive.recursivelyListDirectory(TEST_FOLDER_ROOT_ID).addOnSuccessListener(fileList -> {
-                for (File file : fileList)
-                {
-                    final boolean isGenPdf = file.getMimeType().equals("application/pdf") &&
-                            file.getName().endsWith(".gen.pdf");
-                    final boolean isAudioFile = file.getMimeType().startsWith("audio");
-                    if (isGenPdf || isAudioFile)
-                    {
-                        Log.d(TAG, String.format("name=%s, mimeType=%s", file.getName(), file.getMimeType()));
-                    }
-                }
-            });
+            mSongFinder.findSongsRecursivelyInDirectory(TEST_FOLDER_ROOT_ID)
+                    .addOnSuccessListener(songs -> {
+                        for (Song song : songs)
+                        {
+                            Log.d(TAG, String.format("%s: %d pdfs %d audio", song.mName, song.mPdfFiles.size(),
+                                    song.mAudioFiles.size()));
+                        }
+                    })
+                    .addOnFailureListener(exception -> {
+                        Log.d(TAG, Log.getStackTraceString(exception));
+                    });
         });
 
         // TODO: should be more user friendly in the future
@@ -94,7 +93,7 @@ public class MainActivity extends AppCompatActivity
                     GoogleAccountCredential credential = GoogleAccountCredential.usingOAuth2(
                             this, Collections.singletonList(DriveScopes.DRIVE));
                     credential.setSelectedAccount(googleAccount.getAccount());
-                    mDrive.initializeWithCredential(credential);
+                    mSongFinder.setCredentialAndInitializeDrive(credential);
                 })
                 .addOnFailureListener(exception -> Log.e(TAG, "Unable to sign in.", exception));
     }
