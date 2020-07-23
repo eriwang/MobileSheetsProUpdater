@@ -1,7 +1,6 @@
 package com.eriwang.mbspro_updater.view;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.documentfile.provider.DocumentFile;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -11,7 +10,6 @@ import android.util.Log;
 
 import com.eriwang.mbspro_updater.R;
 import com.eriwang.mbspro_updater.drive.DriveWrapper;
-import com.eriwang.mbspro_updater.drive.Song;
 import com.eriwang.mbspro_updater.drive.SongFinder;
 import com.eriwang.mbspro_updater.mbspro.SongFileManager;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
@@ -44,7 +42,7 @@ public class MainActivity extends AppCompatActivity
 
         mDrive = new DriveWrapper();
         mSongFinder = new SongFinder(mDrive);
-        mSongFileManager = new SongFileManager(mDrive);
+        mSongFileManager = new SongFileManager(mDrive, getApplicationContext());
 
         findViewById(R.id.copy_test).setOnClickListener(view -> {
             // TODO: should explicitly tell user what they should be selecting. also sanity check after that the db
@@ -126,22 +124,9 @@ public class MainActivity extends AppCompatActivity
         final Uri saveLocationUri = result.getData();
         ProdAssert.notNull(saveLocationUri);
 
-        // find all songs -> download all songs
         mSongFinder.findSongsRecursivelyInDirectory(TEST_FOLDER_ROOT_ID)
                 .addOnSuccessListener(songs -> {
-                    Song testSong = null;
-                    for (Song song : songs)
-                    {
-                        if (song.mName.equals("Test"))
-                        {
-                            testSong = song;
-                        }
-                    }
-                    ProdAssert.notNull(testSong);
-                    DocumentFile targetDir = DocumentFile.fromTreeUri(this, saveLocationUri);
-                    ProdAssert.notNull(targetDir);
-
-                    mSongFileManager.downloadSongsToDirectory(testSong, targetDir, getContentResolver())
+                    mSongFileManager.downloadSongsToDirectory(songs, saveLocationUri)
                             .addOnFailureListener(exception -> {
                                     Log.d(TAG, Log.getStackTraceString(exception));
                                 });
