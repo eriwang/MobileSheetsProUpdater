@@ -2,7 +2,6 @@ package com.eriwang.mbspro_updater.drive;
 
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
-import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
 import com.google.api.services.drive.model.File;
 
 import java.io.IOException;
@@ -17,15 +16,10 @@ public class SongFinder
     private final Executor mExecutor;
     private final DriveWrapper mDrive;
 
-    public SongFinder()
+    public SongFinder(DriveWrapper drive)
     {
         mExecutor = Executors.newSingleThreadExecutor();
-        mDrive = new DriveWrapper();
-    }
-
-    public void setCredentialAndInitializeDrive(GoogleAccountCredential credential)
-    {
-        mDrive.setCredentialAndInitialize(credential);
+        mDrive = drive;
     }
 
     public Task<List<Song>> findSongsRecursivelyInDirectory(String directoryId)
@@ -54,11 +48,14 @@ public class SongFinder
                 songs.addAll(findSongsRecursivelyInDirectoryForeground(file));
             }
         }
-        if (!dirIsSong)
-        {
-            return songs;
-        }
 
+        return (dirIsSong) ?
+                Collections.singletonList(createSongFromDirContents(directory.getName(), dirContents)) :
+                songs;
+    }
+
+    private static Song createSongFromDirContents(String dirName, List<File> dirContents)
+    {
         ArrayList<File> pdfFiles = new ArrayList<>();
         ArrayList<File> audioFiles = new ArrayList<>();
         for (File file : dirContents)
@@ -72,7 +69,6 @@ public class SongFinder
                 audioFiles.add(file);
             }
         }
-
-        return Collections.singletonList(new Song(directory.getName(), pdfFiles, audioFiles));
+        return new Song(dirName, pdfFiles, audioFiles);
     }
 }

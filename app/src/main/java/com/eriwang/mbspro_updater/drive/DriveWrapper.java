@@ -1,5 +1,6 @@
 package com.eriwang.mbspro_updater.drive;
 
+import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.google.api.client.extensions.android.http.AndroidHttp;
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
 import com.google.api.client.json.gson.GsonFactory;
@@ -7,9 +8,10 @@ import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.List;
 
-class DriveWrapper
+public class DriveWrapper
 {
     private Drive mDrive;
 
@@ -32,6 +34,12 @@ class DriveWrapper
                 .execute();
     }
 
+    public void downloadFile(String fileId, OutputStream outputStream) throws IOException
+    {
+        validateInitialized();
+        mDrive.files().get(fileId).executeMediaAndDownloadTo(outputStream);
+    }
+
     public List<File> listDirectory(String directoryId) throws IOException
     {
         validateInitialized();
@@ -44,9 +52,6 @@ class DriveWrapper
 
     private void validateInitialized()
     {
-        if (mDrive == null)
-        {
-            throw new RuntimeException("Tried to make an API call without initializing");
-        }
+        ProdAssert.prodAssert(mDrive != null, "Tried to make an API call without initializing");
     }
 }
