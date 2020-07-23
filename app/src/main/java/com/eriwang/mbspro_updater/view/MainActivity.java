@@ -1,6 +1,7 @@
 package com.eriwang.mbspro_updater.view;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.documentfile.provider.DocumentFile;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -11,6 +12,7 @@ import android.util.Log;
 import com.eriwang.mbspro_updater.R;
 import com.eriwang.mbspro_updater.drive.DriveWrapper;
 import com.eriwang.mbspro_updater.drive.SongFinder;
+import com.eriwang.mbspro_updater.mbspro.MbsProDatabase;
 import com.eriwang.mbspro_updater.mbspro.SongFileManager;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
@@ -20,6 +22,7 @@ import com.google.android.gms.common.api.Scope;
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
 import com.google.api.services.drive.DriveScopes;
 
+import java.io.IOException;
 import java.util.Collections;
 
 public class MainActivity extends AppCompatActivity
@@ -27,6 +30,7 @@ public class MainActivity extends AppCompatActivity
     private static final String TAG = "Main";
     private static final int REQ_CODE_SIGN_IN = 1;
     private static final int REQ_CODE_DOWNLOAD_DRIVE_SONGS = 2;
+    private static final int REQ_CODE_DB_TEST = 3;
 
     private static final String TEST_FOLDER_ROOT_ID = "11HTp4Y8liv9Oc0Sof0bxvlsGSLmQAvl4";
 
@@ -54,6 +58,13 @@ public class MainActivity extends AppCompatActivity
             // TODO: specify initial URI?
             startActivityForResult(intent, REQ_CODE_DOWNLOAD_DRIVE_SONGS);
         });
+        findViewById(R.id.db_test).setOnClickListener(view -> {
+            // TODO: remove
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    .addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            startActivityForResult(intent, REQ_CODE_DB_TEST);
+        });
 
         // TODO: should be more user friendly in the future
         requestSignIn();
@@ -70,6 +81,10 @@ public class MainActivity extends AppCompatActivity
 
         case REQ_CODE_DOWNLOAD_DRIVE_SONGS:
             handleDownloadDriveSongsResult(resultCode, resultData);
+            break;
+
+        case REQ_CODE_DB_TEST:
+            handleDbTest(resultCode, resultData);
             break;
 
         default:
@@ -134,5 +149,35 @@ public class MainActivity extends AppCompatActivity
                 .addOnFailureListener(exception -> {
                     Log.d(TAG, Log.getStackTraceString(exception));
                 });
+    }
+
+    private void handleDbTest(int resultCode, Intent result)
+    {
+        if (resultCode != Activity.RESULT_OK || result == null)
+        {
+            return;
+        }
+
+        final Uri saveLocationUri = result.getData();
+        ProdAssert.notNull(saveLocationUri);
+
+        Uri mbsProDbUri = null;
+        for (DocumentFile file : DocumentFile.fromTreeUri(this, saveLocationUri).listFiles())
+        {
+            if (file.getName().equals("mobilesheets.db"))
+            {
+                mbsProDbUri = file.getUri();
+            }
+        }
+        ProdAssert.notNull(mbsProDbUri);
+
+        try
+        {
+            MbsProDatabase.printGenres(mbsProDbUri, getContentResolver());
+        }
+        catch (IOException exception)
+        {
+            Log.e(TAG, "oops", exception);
+        }
     }
 }

@@ -2,6 +2,7 @@ package com.eriwang.mbspro_updater.mbspro;
 
 import android.content.Context;
 import android.net.Uri;
+import android.util.Log;
 
 import androidx.documentfile.provider.DocumentFile;
 
@@ -21,6 +22,8 @@ import java.util.concurrent.Executors;
 
 public class SongFileManager
 {
+    private static final String TAG = "SongFileManager";
+
     private final Executor mExecutor;
     private final DriveWrapper mDrive;
     private final Context mContext;
@@ -56,6 +59,7 @@ public class SongFileManager
 
         for (Song song : songs)
         {
+            Log.d(TAG, String.format("Downloading files for song %s", song.mName));
             DocumentFile songDirectory = directory.createDirectory(song.mName);
             ProdAssert.notNull(songDirectory);
 

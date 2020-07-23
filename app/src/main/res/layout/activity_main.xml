@@ -14,7 +14,11 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Download Drive Songs" />
-
+        <Button
+                android:id="@+id/db_test"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Test DB" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
