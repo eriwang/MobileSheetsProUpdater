@@ -37,6 +37,7 @@ public class MainActivity extends AppCompatActivity
     private DriveWrapper mDrive;
     private SongFinder mSongFinder;
     private SongFileManager mSongFileManager;
+    private MbsProDatabaseManager mMbsProDatabaseManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -47,6 +48,7 @@ public class MainActivity extends AppCompatActivity
         mDrive = new DriveWrapper();
         mSongFinder = new SongFinder(mDrive);
         mSongFileManager = new SongFileManager(mDrive, getApplicationContext());
+        mMbsProDatabaseManager = new MbsProDatabaseManager(getContentResolver());
 
         findViewById(R.id.copy_test).setOnClickListener(view -> {
             // TODO: should explicitly tell user what they should be selecting. also sanity check after that the db
@@ -170,13 +172,12 @@ public class MainActivity extends AppCompatActivity
             }
         }
         ProdAssert.notNull(mbsProDbUri);
-
-        final Uri finalMbsProDbUri = mbsProDbUri;
+        mMbsProDatabaseManager.setDbUri(mbsProDbUri);
         mSongFinder.findSongsRecursivelyInDirectory(TEST_FOLDER_ROOT_ID)
                 .addOnSuccessListener(songs -> {
                     try
                     {
-                        MbsProDatabaseManager.insertSongsIntoDb(songs, finalMbsProDbUri, getContentResolver());
+                        mMbsProDatabaseManager.insertSongsIntoDb(songs);
                     }
                     catch (IOException exception)
                     {

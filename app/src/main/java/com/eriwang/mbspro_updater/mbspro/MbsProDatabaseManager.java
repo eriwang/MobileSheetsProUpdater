@@ -8,6 +8,7 @@ import android.util.Log;
 
 import com.eriwang.mbspro_updater.drive.Song;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
+import com.eriwang.mbspro_updater.utils.StreamUtils;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -19,25 +20,26 @@ import java.util.List;
 
 public class MbsProDatabaseManager
 {
-    public static void insertSongsIntoDb(List<Song> songs, Uri dbUri, ContentResolver contentResolver) throws IOException
+    private final ContentResolver mContentResolver;
+    private Uri mDbUri;
+
+    public MbsProDatabaseManager(ContentResolver contentResolver)
     {
-        InputStream dbInputStream = contentResolver.openInputStream(dbUri);
-        ProdAssert.notNull(dbInputStream);
+        mContentResolver = contentResolver;  // would app context make more sense?
+    }
 
-        File dbFile = File.createTempFile("mbs", "db");
-        FileOutputStream dbFileOutputStream = new FileOutputStream(dbFile);
+    public void setDbUri(Uri dbUri)
+    {
+        mDbUri = dbUri;
+    }
 
-        int readBytes;
-        byte[] buffer = new byte[2048];
-        while ((readBytes = dbInputStream.read(buffer)) != -1)
-        {
-            dbFileOutputStream.write(buffer, 0, readBytes);
-        }
-        dbFileOutputStream.flush();
-        dbInputStream.close();
+    public void insertSongsIntoDb(List<Song> songs) throws IOException
+    {
+        validateDbUriKnown();
 
-        SQLiteDatabase db = SQLiteDatabase.openOrCreateDatabase(dbFile, null);
+        File tempDbFile = File.createTempFile("mbs", "db");
 
+        SQLiteDatabase db = readCurrentDatabase(tempDbFile);
         db.delete("Songs", null, null);
         db.delete("Files", null, null);
 
@@ -62,14 +64,40 @@ public class MbsProDatabaseManager
         }
         db.close();
 
-        OutputStream dbOutputStream = contentResolver.openOutputStream(dbUri, "w");
-        FileInputStream newDbFileInputStream = new FileInputStream(dbFile);
-        while ((readBytes = newDbFileInputStream.read(buffer)) != -1)
-        {
-            dbOutputStream.write(buffer, 0, readBytes);
-        }
-        dbOutputStream.close();
+        writeToDatabase(tempDbFile);
 
         Log.d("db_test", "Finished writing db with songs");
+    }
+
+    // The Android Storage Access Framework makes accessing the actual MBS Pro database java.io.File object impossible.
+    // In order to manipulate the database using the built in Android SQLiteDatabase, we instead read the database to a
+    // temp file (i.e. making a tempfile-backed database) and then write out the temp file again when we're done.
+    private SQLiteDatabase readCurrentDatabase(File tempDbFile) throws IOException
+    {
+        FileOutputStream tempFileDbOutputStream = new FileOutputStream(tempDbFile);
+        InputStream currentDbInputStream = mContentResolver.openInputStream(mDbUri);
+        ProdAssert.notNull(currentDbInputStream);
+
+        StreamUtils.writeInputToOutputStream(currentDbInputStream, tempFileDbOutputStream);
+        tempFileDbOutputStream.close();
+        currentDbInputStream.close();
+
+        return SQLiteDatabase.openOrCreateDatabase(tempDbFile, null);
+    }
+
+    private void writeToDatabase(File tempDbFile) throws IOException
+    {
+        FileInputStream newDbFileInputStream = new FileInputStream(tempDbFile);
+        OutputStream dbOutputStream = mContentResolver.openOutputStream(mDbUri, "w");
+        ProdAssert.notNull(dbOutputStream);
+
+        StreamUtils.writeInputToOutputStream(newDbFileInputStream, dbOutputStream);
+        dbOutputStream.close();
+        newDbFileInputStream.close();
+    }
+
+    private void validateDbUriKnown()
+    {
+        ProdAssert.notNull(mDbUri);
     }
 }
