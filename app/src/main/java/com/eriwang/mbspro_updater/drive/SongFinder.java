@@ -22,13 +22,13 @@ public class SongFinder
         mDrive = drive;
     }
 
-    public Task<List<Song>> findSongsRecursivelyInDirectory(String directoryId)
+    public Task<List<DriveSong>> findSongsRecursivelyInDirectory(String directoryId)
     {
         return Tasks.call(mExecutor, () ->
                 findSongsRecursivelyInDirectoryForeground(mDrive.getFileMetadata(directoryId)));
     }
 
-    private List<Song> findSongsRecursivelyInDirectoryForeground(File directory) throws IOException
+    private List<DriveSong> findSongsRecursivelyInDirectoryForeground(File directory) throws IOException
     {
         /*
          * Some assumptions on songs that might need to be revisited:
@@ -38,23 +38,23 @@ public class SongFinder
          *  this will still count them all as the same song)
          */
         boolean dirIsSong = true;
-        ArrayList<Song> songs = new ArrayList<>();
+        ArrayList<DriveSong> driveSongs = new ArrayList<>();
         List<File> dirContents = mDrive.listDirectory(directory.getId());
         for (File file : dirContents)
         {
             if (DriveUtils.isFolder(file))
             {
                 dirIsSong = false;
-                songs.addAll(findSongsRecursivelyInDirectoryForeground(file));
+                driveSongs.addAll(findSongsRecursivelyInDirectoryForeground(file));
             }
         }
 
         return (dirIsSong) ?
                 Collections.singletonList(createSongFromDirContents(directory.getName(), dirContents)) :
-                songs;
+                driveSongs;
     }
 
-    private static Song createSongFromDirContents(String dirName, List<File> dirContents)
+    private static DriveSong createSongFromDirContents(String dirName, List<File> dirContents)
     {
         ArrayList<File> pdfFiles = new ArrayList<>();
         ArrayList<File> audioFiles = new ArrayList<>();
@@ -69,6 +69,6 @@ public class SongFinder
                 audioFiles.add(file);
             }
         }
-        return new Song(dirName, pdfFiles, audioFiles);
+        return new DriveSong(dirName, pdfFiles, audioFiles);
     }
 }

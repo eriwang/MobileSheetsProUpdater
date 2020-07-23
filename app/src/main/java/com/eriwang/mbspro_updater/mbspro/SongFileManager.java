@@ -7,7 +7,7 @@ import android.util.Log;
 import androidx.documentfile.provider.DocumentFile;
 
 import com.eriwang.mbspro_updater.drive.DriveWrapper;
-import com.eriwang.mbspro_updater.drive.Song;
+import com.eriwang.mbspro_updater.drive.DriveSong;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
@@ -35,18 +35,18 @@ public class SongFileManager
         mContext = context;
     }
 
-    public Task<Void> downloadSongsToDirectory(List<Song> songs, Uri directoryUri)
+    public Task<Void> downloadSongsToDirectory(List<DriveSong> driveSongs, Uri directoryUri)
     {
-        return Tasks.call(mExecutor, () -> downloadSongsToDirectoryForeground(songs, directoryUri));
+        return Tasks.call(mExecutor, () -> downloadSongsToDirectoryForeground(driveSongs, directoryUri));
     }
 
-    private Void downloadSongsToDirectoryForeground(List<Song> songs, Uri directoryUri) throws IOException
+    private Void downloadSongsToDirectoryForeground(List<DriveSong> driveSongs, Uri directoryUri) throws IOException
     {
         DocumentFile directory = DocumentFile.fromTreeUri(mContext, directoryUri);
         ProdAssert.notNull(directory);
         ProdAssert.prodAssert(directory.isDirectory(), "Document %s is not a directory", directory.getName());
 
-        validateNoDuplicateSongNames(songs);
+        validateNoDuplicateSongNames(driveSongs);
 
         // For simplicity, we do a clean download (i.e. clearing all folders) each time. To be changed in the future.
         for (DocumentFile file : directory.listFiles())
@@ -57,17 +57,17 @@ public class SongFileManager
             }
         }
 
-        for (Song song : songs)
+        for (DriveSong driveSong : driveSongs)
         {
-            Log.d(TAG, String.format("Downloading files for song %s", song.mName));
-            DocumentFile songDirectory = directory.createDirectory(song.mName);
+            Log.d(TAG, String.format("Downloading files for song %s", driveSong.mName));
+            DocumentFile songDirectory = directory.createDirectory(driveSong.mName);
             ProdAssert.notNull(songDirectory);
 
-            for (File file : song.mPdfFiles)
+            for (File file : driveSong.mPdfFiles)
             {
                 downloadDriveFileToDirectory(songDirectory, file);
             }
-            for (File file : song.mAudioFiles)
+            for (File file : driveSong.mAudioFiles)
             {
                 downloadDriveFileToDirectory(songDirectory, file);
             }
@@ -84,12 +84,12 @@ public class SongFileManager
         mDrive.downloadFile(driveFile.getId(), mContext.getContentResolver().openOutputStream(newFile.getUri()));
     }
 
-    private static void validateNoDuplicateSongNames(List<Song> songs)
+    private static void validateNoDuplicateSongNames(List<DriveSong> driveSongs)
     {
         Set<String> songNames = new HashSet<>();
-        for (Song song : songs)
+        for (DriveSong driveSong : driveSongs)
         {
-            ProdAssert.prodAssert(songNames.add(song.mName), "Found duplicate song name %s", song.mName);
+            ProdAssert.prodAssert(songNames.add(driveSong.mName), "Found duplicate song name %s", driveSong.mName);
         }
     }
 }

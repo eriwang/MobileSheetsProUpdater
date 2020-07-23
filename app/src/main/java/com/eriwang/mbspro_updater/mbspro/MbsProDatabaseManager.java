@@ -6,7 +6,6 @@ import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.util.Log;
 
-import com.eriwang.mbspro_updater.drive.Song;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.eriwang.mbspro_updater.utils.StreamUtils;
 
@@ -33,7 +32,7 @@ public class MbsProDatabaseManager
         mDbUri = dbUri;
     }
 
-    public void insertSongsIntoDb(List<Song> songs) throws IOException
+    public void insertSongsIntoDb(List<MbsProSong> mbsProSongs) throws IOException
     {
         validateDbUriKnown();
 
@@ -43,23 +42,23 @@ public class MbsProDatabaseManager
         db.delete("Songs", null, null);
         db.delete("Files", null, null);
 
-        for (Song song : songs)
+        for (MbsProSong mbsProSong : mbsProSongs)
         {
             ContentValues songValues = new ContentValues();
-            songValues.put("Title", song.mName);
-            songValues.put("SongId", 0);
+            songValues.put("Title", mbsProSong.mName);
             long songId = db.insert("Songs", null, songValues);
-            ProdAssert.prodAssert(songId != -1, "Insertion for song %s failed", song.mName);
+            ProdAssert.prodAssert(songId != -1, "Insertion for song %s failed", mbsProSong.mName);
 
-            for (com.google.api.services.drive.model.File pdfFile : song.mPdfFiles)
+            for (MbsProSong.MbsProSongPdf pdf : mbsProSong.mPdfs)
             {
                 ContentValues pdfFileValues = new ContentValues();
                 pdfFileValues.put("SongId", songId);
-                pdfFileValues.put("Path", String.format("%s/%s", song.mName, pdfFile.getName()));
-                pdfFileValues.put("PageOrder", "1-1");  // FIXME: wrong
+                pdfFileValues.put("Path", String.format("%s/%s", mbsProSong.mName, pdf.mFilename));
+                pdfFileValues.put("PageOrder", String.format("1-%d", pdf.mNumPages));
+                pdfFileValues.put("LastModified", pdf.mLastModified);
                 pdfFileValues.put("Type", 1);  // Not sure if PDF file type or MBS Pro SourceType
                 long pdfFileId = db.insert("Files", null, pdfFileValues);
-                ProdAssert.prodAssert(pdfFileId != -1, "Insertion for pdf file %s failed", pdfFile.getName());
+                ProdAssert.prodAssert(pdfFileId != -1, "Insertion for pdf file %s failed", pdf.mFilename);
             }
         }
         db.close();
