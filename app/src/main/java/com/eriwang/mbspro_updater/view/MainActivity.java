@@ -12,7 +12,7 @@ import android.util.Log;
 import com.eriwang.mbspro_updater.R;
 import com.eriwang.mbspro_updater.drive.DriveWrapper;
 import com.eriwang.mbspro_updater.drive.SongFinder;
-import com.eriwang.mbspro_updater.mbspro.MbsProDatabase;
+import com.eriwang.mbspro_updater.mbspro.MbsProDatabaseManager;
 import com.eriwang.mbspro_updater.mbspro.SongFileManager;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
@@ -171,13 +171,20 @@ public class MainActivity extends AppCompatActivity
         }
         ProdAssert.notNull(mbsProDbUri);
 
-        try
-        {
-            MbsProDatabase.printGenres(mbsProDbUri, getContentResolver());
-        }
-        catch (IOException exception)
-        {
-            Log.e(TAG, "oops", exception);
-        }
+        final Uri finalMbsProDbUri = mbsProDbUri;
+        mSongFinder.findSongsRecursivelyInDirectory(TEST_FOLDER_ROOT_ID)
+                .addOnSuccessListener(songs -> {
+                    try
+                    {
+                        MbsProDatabaseManager.insertSongsIntoDb(songs, finalMbsProDbUri, getContentResolver());
+                    }
+                    catch (IOException exception)
+                    {
+                        Log.e(TAG, "oops", exception);
+                    }
+                })
+                .addOnFailureListener(exception -> {
+                    Log.d(TAG, Log.getStackTraceString(exception));
+                });
     }
 }
