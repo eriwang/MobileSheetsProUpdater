@@ -1,5 +1,6 @@
 package com.eriwang.mbspro_updater.view;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.documentfile.provider.DocumentFile;
 
@@ -13,7 +14,6 @@ import com.eriwang.mbspro_updater.R;
 import com.eriwang.mbspro_updater.drive.DriveWrapper;
 import com.eriwang.mbspro_updater.drive.SongFinder;
 import com.eriwang.mbspro_updater.mbspro.MbsProDatabaseManager;
-import com.eriwang.mbspro_updater.mbspro.MbsProSong;
 import com.eriwang.mbspro_updater.mbspro.SongFileManager;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
@@ -23,7 +23,6 @@ import com.google.android.gms.common.api.Scope;
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
 import com.google.api.services.drive.DriveScopes;
 
-import java.io.IOException;
 import java.util.Collections;
 
 public class MainActivity extends AppCompatActivity
@@ -150,7 +149,7 @@ public class MainActivity extends AppCompatActivity
                                 });
                 })
                 .addOnFailureListener(exception -> {
-                    Log.d(TAG, Log.getStackTraceString(exception));
+                    Log.e(TAG, "Couldn't search in directory?", exception);
                 });
     }
 
@@ -164,6 +163,7 @@ public class MainActivity extends AppCompatActivity
         final Uri saveLocationUri = result.getData();
         ProdAssert.notNull(saveLocationUri);
 
+        // TODO: probably shouldn't be done here
         Uri mbsProDbUri = null;
         for (DocumentFile file : DocumentFile.fromTreeUri(this, saveLocationUri).listFiles())
         {
@@ -175,13 +175,13 @@ public class MainActivity extends AppCompatActivity
         ProdAssert.notNull(mbsProDbUri);
         mMbsProDatabaseManager.setDbUri(mbsProDbUri);
 
-        try
-        {
-            mMbsProDatabaseManager.insertSongsIntoDb(MbsProSong.createFromRootUri(saveLocationUri, this));
-        }
-        catch (IOException exception)
-        {
-            Log.e(TAG, "oops", exception);
-        }
+        // TODO: have an executor in MainActivity instead of all the contained classes returning tasks and having two
+        //       functions every time I need a task?
+        mSongFileManager.createMbsProSongsFromDirectory(saveLocationUri)
+                .onSuccessTask(songs -> {
+                    ProdAssert.notNull(songs);
+                    return mMbsProDatabaseManager.insertSongsIntoDb(songs);
+                })
+                .addOnFailureListener(exception -> Log.e(TAG, "Couldn't create MBS Pro Songs", exception));
     }
 }

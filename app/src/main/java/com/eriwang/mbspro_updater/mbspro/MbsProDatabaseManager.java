@@ -8,6 +8,8 @@ import android.util.Log;
 
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.eriwang.mbspro_updater.utils.StreamUtils;
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -16,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
+import java.util.concurrent.Executors;
 
 public class MbsProDatabaseManager
 {
@@ -24,7 +27,7 @@ public class MbsProDatabaseManager
 
     public MbsProDatabaseManager(ContentResolver contentResolver)
     {
-        mContentResolver = contentResolver;  // would app context make more sense?
+        mContentResolver = contentResolver;
     }
 
     public void setDbUri(Uri dbUri)
@@ -32,7 +35,12 @@ public class MbsProDatabaseManager
         mDbUri = dbUri;
     }
 
-    public void insertSongsIntoDb(List<MbsProSong> mbsProSongs) throws IOException
+    public Task<Void> insertSongsIntoDb(List<MbsProSong> mbsProSongs)
+    {
+        return Tasks.call(Executors.newSingleThreadExecutor(), () -> insertSongsIntoDbForeground(mbsProSongs));
+    }
+
+    private Void insertSongsIntoDbForeground(List<MbsProSong> mbsProSongs) throws IOException
     {
         validateDbUriKnown();
 
@@ -49,6 +57,8 @@ public class MbsProDatabaseManager
             long songId = db.insert("Songs", null, songValues);
             ProdAssert.prodAssert(songId != -1, "Insertion for song %s failed", mbsProSong.mName);
 
+            // TODO: ordering of pdfs is done by the actual ID of the entries in the database. I'd like to have a
+            //  sane ordering (for example to start parts alpha order, score last)
             for (MbsProSong.MbsProSongPdf pdf : mbsProSong.mPdfs)
             {
                 ContentValues pdfFileValues = new ContentValues();
@@ -66,6 +76,8 @@ public class MbsProDatabaseManager
         writeToDatabase(tempDbFile);
 
         Log.d("db_test", "Finished writing db with songs");
+
+        return null;
     }
 
     // The Android Storage Access Framework makes accessing the actual MBS Pro database java.io.File object impossible.
