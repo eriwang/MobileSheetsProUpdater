@@ -4,26 +4,16 @@
         xmlns:tools="http://schemas.android.com/tools"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        tools:context=".MainActivity">
+        tools:context=".view.MainActivity">
     <LinearLayout
             android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="match_parent">
         <Button
-                android:id="@+id/log_drive_files_btn"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Log Drive Files" />
-        <Button
-                android:id="@+id/ls_mbspro_dir"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="LS MBSPro Dir" />
-        <Button
                 android:id="@+id/copy_test"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Copy test" />
+                android:text="Download Drive Songs" />
 
     </LinearLayout>
 

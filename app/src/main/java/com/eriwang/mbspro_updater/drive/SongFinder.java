@@ -2,7 +2,6 @@ package com.eriwang.mbspro_updater.drive;
 
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
-import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
 import com.google.api.services.drive.model.File;
 
 import java.io.IOException;
@@ -14,18 +13,13 @@ import java.util.concurrent.Executors;
 
 public class SongFinder
 {
-    public final Executor mExecutor;  // FIXME
-    public final DriveWrapper mDrive;  // FIXME
+    private final Executor mExecutor;
+    private final DriveWrapper mDrive;
 
-    public SongFinder()
+    public SongFinder(DriveWrapper drive)
     {
         mExecutor = Executors.newSingleThreadExecutor();
-        mDrive = new DriveWrapper();
-    }
-
-    public void setCredentialAndInitializeDrive(GoogleAccountCredential credential)
-    {
-        mDrive.setCredentialAndInitialize(credential);
+        mDrive = drive;
     }
 
     public Task<List<Song>> findSongsRecursivelyInDirectory(String directoryId)
