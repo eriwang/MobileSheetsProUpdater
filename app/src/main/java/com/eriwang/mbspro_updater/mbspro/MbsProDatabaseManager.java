@@ -41,6 +41,7 @@ public class MbsProDatabaseManager
         SQLiteDatabase db = readCurrentDatabase(tempDbFile);
         db.delete("Songs", null, null);
         db.delete("Files", null, null);
+        db.delete("AudioFiles", null, null);
 
         for (MbsProSong mbsProSong : mbsProSongs)
         {
@@ -61,6 +62,17 @@ public class MbsProDatabaseManager
                 pdfFileValues.put("Type", 1);  // Not sure if PDF file type or MBS Pro SourceType
                 long pdfFileId = db.insert("Files", null, pdfFileValues);
                 ProdAssert.prodAssert(pdfFileId != -1, "Insertion for pdf file %s failed", pdf.mFilename);
+            }
+
+            for (MbsProSong.MbsProSongAudio audioFile : mbsProSong.mAudioFiles)
+            {
+                ContentValues audioFileValues = new ContentValues();
+                audioFileValues.put("SongId", songId);
+                audioFileValues.put("Title", filenameNoExtension(audioFile.mFilename));
+                audioFileValues.put("File", String.format("%s/%s", mbsProSong.mName, audioFile.mFilename));
+                audioFileValues.put("LastModified", audioFile.mLastModified);
+                long audioFileId = db.insert("AudioFiles", null, audioFileValues);
+                ProdAssert.prodAssert(audioFileId != -1, "Insertion for audio file %s failed", audioFile.mFilename);
             }
         }
         db.close();
@@ -100,5 +112,12 @@ public class MbsProDatabaseManager
     private void validateDbUriKnown()
     {
         ProdAssert.notNull(mDbUri);
+    }
+
+    private static String filenameNoExtension(String filename)
+    {
+        int dotIndex = filename.indexOf('.');
+        ProdAssert.prodAssert(dotIndex > -1, "Could not find extension in filename %s", filename);
+        return filename.substring(0, dotIndex);
     }
 }

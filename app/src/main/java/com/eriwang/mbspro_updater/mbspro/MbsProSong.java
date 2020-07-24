@@ -2,21 +2,19 @@ package com.eriwang.mbspro_updater.mbspro;
 
 import java.util.List;
 
- // Information needed:
-//  - Audio: SongId, Title (filename?), File (song name + filename), maybe EndPos (milliseconds?). LastModified
-//  would be nice
 public class MbsProSong
 {
     public final String mName;
     // TODO: private final int mCreationDate;
 
     public final List<MbsProSongPdf> mPdfs;
-    // TODO: private final List<MbsProSongAudio> mAudioFiles;
+    public final List<MbsProSongAudio> mAudioFiles;
 
-    public MbsProSong(String name, List<MbsProSongPdf> pdfs)
+    public MbsProSong(String name, List<MbsProSongPdf> pdfs, List<MbsProSongAudio> audioFiles)
     {
         mName = name;
         mPdfs = pdfs;
+        mAudioFiles = audioFiles;
     }
 
     public static class MbsProSongPdf
@@ -33,5 +31,15 @@ public class MbsProSong
         }
     }
 
-    // TODO: MbsProSongAudio
+    public static class MbsProSongAudio
+    {
+        public final String mFilename;
+        public final long mLastModified;
+
+        public MbsProSongAudio(String filename, long lastModified)
+        {
+            mFilename = filename;
+            mLastModified = lastModified;
+        }
+    }
 }
