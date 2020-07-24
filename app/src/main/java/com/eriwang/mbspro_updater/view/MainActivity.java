@@ -1,6 +1,5 @@
 package com.eriwang.mbspro_updater.view;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.documentfile.provider.DocumentFile;
 
@@ -15,15 +14,21 @@ import com.eriwang.mbspro_updater.drive.DriveWrapper;
 import com.eriwang.mbspro_updater.drive.SongFinder;
 import com.eriwang.mbspro_updater.mbspro.MbsProDatabaseManager;
 import com.eriwang.mbspro_updater.mbspro.SongFileManager;
+import com.eriwang.mbspro_updater.utils.FunctionWrapper;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.common.api.Scope;
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
 import com.google.api.services.drive.DriveScopes;
 
 import java.util.Collections;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity
 {
@@ -34,6 +39,7 @@ public class MainActivity extends AppCompatActivity
 
     private static final String TEST_FOLDER_ROOT_ID = "11HTp4Y8liv9Oc0Sof0bxvlsGSLmQAvl4";
 
+    private Executor mExecutor;
     private DriveWrapper mDrive;
     private SongFinder mSongFinder;
     private SongFileManager mSongFileManager;
@@ -45,6 +51,7 @@ public class MainActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        mExecutor = Executors.newSingleThreadExecutor();
         mDrive = new DriveWrapper();
         mSongFinder = new SongFinder(mDrive);
         mSongFileManager = new SongFileManager(mDrive, getApplicationContext());
@@ -119,14 +126,15 @@ public class MainActivity extends AppCompatActivity
         }
 
         GoogleSignIn.getSignedInAccountFromIntent(result)
-                .addOnSuccessListener(googleAccount -> {
-                    Log.d(TAG, "Signed in as " + googleAccount.getEmail());
+                .onSuccessTask(googleSignInAccount -> taskExecuteVoid(() -> {
+                    ProdAssert.notNull(googleSignInAccount);
+                    Log.d(TAG, "Signed in as " + googleSignInAccount.getEmail());
 
                     GoogleAccountCredential credential = GoogleAccountCredential.usingOAuth2(
                             this, Collections.singletonList(DriveScopes.DRIVE));
-                    credential.setSelectedAccount(googleAccount.getAccount());
+                    credential.setSelectedAccount(googleSignInAccount.getAccount());
                     mDrive.setCredentialAndInitialize(credential);
-                })
+                }))
                 .addOnFailureListener(exception -> Log.e(TAG, "Unable to sign in.", exception));
     }
 
@@ -141,16 +149,10 @@ public class MainActivity extends AppCompatActivity
         final Uri saveLocationUri = result.getData();
         ProdAssert.notNull(saveLocationUri);
 
-        mSongFinder.findSongsRecursivelyInDirectory(TEST_FOLDER_ROOT_ID)
-                .addOnSuccessListener(songs -> {
-                    mSongFileManager.downloadSongsToDirectory(songs, saveLocationUri)
-                            .addOnFailureListener(exception -> {
-                                    Log.d(TAG, Log.getStackTraceString(exception));
-                                });
-                })
-                .addOnFailureListener(exception -> {
-                    Log.e(TAG, "Couldn't search in directory?", exception);
-                });
+        taskExecute(() -> mSongFinder.findSongsRecursivelyInDirectoryId(TEST_FOLDER_ROOT_ID))
+                .onSuccessTask(songs -> taskExecuteVoid(() ->
+                        mSongFileManager.downloadSongsToDirectory(songs, saveLocationUri)))
+                .addOnFailureListener(exception -> Log.e(TAG, "Failed directory search or song download", exception));
     }
 
     private void handleDbTest(int resultCode, Intent result)
@@ -175,13 +177,21 @@ public class MainActivity extends AppCompatActivity
         ProdAssert.notNull(mbsProDbUri);
         mMbsProDatabaseManager.setDbUri(mbsProDbUri);
 
-        // TODO: have an executor in MainActivity instead of all the contained classes returning tasks and having two
-        //       functions every time I need a task?
-        mSongFileManager.createMbsProSongsFromDirectory(saveLocationUri)
-                .onSuccessTask(songs -> {
+        taskExecute(() -> mSongFileManager.createMbsProSongsFromDirectory(saveLocationUri))
+                .onSuccessTask(songs -> taskExecuteVoid(() -> {
                     ProdAssert.notNull(songs);
-                    return mMbsProDatabaseManager.insertSongsIntoDb(songs);
-                })
+                    mMbsProDatabaseManager.insertSongsIntoDb(songs);
+                }))
                 .addOnFailureListener(exception -> Log.e(TAG, "Couldn't create MBS Pro Songs", exception));
+    }
+
+    private <T> Task<T> taskExecute(Callable<T> c)
+    {
+        return Tasks.call(mExecutor, FunctionWrapper.createTyped(c));
+    }
+
+    private Task<Void> taskExecuteVoid(FunctionWrapper.VoidFunction f)
+    {
+        return Tasks.call(mExecutor, FunctionWrapper.createVoid(f));
     }
 }

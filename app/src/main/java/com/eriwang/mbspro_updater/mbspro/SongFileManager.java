@@ -13,8 +13,6 @@ import com.eriwang.mbspro_updater.drive.DriveSong;
 import com.eriwang.mbspro_updater.utils.DocumentFileUtils;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.eriwang.mbspro_updater.utils.StreamUtils;
-import com.google.android.gms.tasks.Task;
-import com.google.android.gms.tasks.Tasks;
 import com.google.api.services.drive.model.File;
 
 import java.io.FileOutputStream;
@@ -24,35 +22,21 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 
 public class SongFileManager
 {
     private static final String TAG = "SongFileManager";
 
-    private final Executor mExecutor;
     private final DriveWrapper mDrive;
     private final Context mContext;
 
     public SongFileManager(DriveWrapper drive, Context context)
     {
-        mExecutor = Executors.newSingleThreadExecutor();
         mDrive = drive;
         mContext = context;
     }
 
-    public Task<Void> downloadSongsToDirectory(List<DriveSong> driveSongs, Uri directoryUri)
-    {
-        return Tasks.call(mExecutor, () -> downloadSongsToDirectoryForeground(driveSongs, directoryUri));
-    }
-
-    public Task<List<MbsProSong>> createMbsProSongsFromDirectory(Uri directoryUri)
-    {
-        return Tasks.call(mExecutor, () -> createMbsProSongsFromDirectoryForeground(directoryUri));
-    }
-
-    private Void downloadSongsToDirectoryForeground(List<DriveSong> driveSongs, Uri directoryUri) throws IOException
+    public void downloadSongsToDirectory(List<DriveSong> driveSongs, Uri directoryUri) throws IOException
     {
         validateNoDuplicateSongNames(driveSongs);
         DocumentFile directory = DocumentFileUtils.safeDirectoryFromTreeUri(mContext, directoryUri);
@@ -81,11 +65,9 @@ public class SongFileManager
                 downloadDriveFileToDirectory(songDirectory, file);
             }
         }
-
-        return null;
     }
 
-    private List<MbsProSong> createMbsProSongsFromDirectoryForeground(Uri directoryUri) throws IOException
+    public List<MbsProSong> createMbsProSongsFromDirectory(Uri directoryUri) throws IOException
     {
         DocumentFile directory = DocumentFileUtils.safeDirectoryFromTreeUri(mContext, directoryUri);
 
