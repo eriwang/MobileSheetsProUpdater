@@ -41,6 +41,8 @@ public class MbsProDatabaseManager
         SQLiteDatabase db = readCurrentDatabase(tempDbFile);
         db.delete("Songs", null, null);
         db.delete("Files", null, null);
+        db.delete("AudioFiles", null, null);
+        db.delete("Bookmarks", null, null);
 
         for (MbsProSong mbsProSong : mbsProSongs)
         {
@@ -51,6 +53,7 @@ public class MbsProDatabaseManager
 
             // TODO: ordering of pdfs is done by the actual ID of the entries in the database. I'd like to have a
             //  sane ordering (for example to start parts alpha order, score last)
+            int currentPageCount = 0;
             for (MbsProSong.MbsProSongPdf pdf : mbsProSong.mPdfs)
             {
                 ContentValues pdfFileValues = new ContentValues();
@@ -61,6 +64,33 @@ public class MbsProDatabaseManager
                 pdfFileValues.put("Type", 1);  // Not sure if PDF file type or MBS Pro SourceType
                 long pdfFileId = db.insert("Files", null, pdfFileValues);
                 ProdAssert.prodAssert(pdfFileId != -1, "Insertion for pdf file %s failed", pdf.mFilename);
+
+                String partName = getPartName(pdf.mFilename);
+                if (partName == null)
+                {
+                    partName = "Score";
+                }
+
+                ContentValues bookmarkValues = new ContentValues();
+                bookmarkValues.put("SongId", songId);
+                bookmarkValues.put("Name", partName);
+                bookmarkValues.put("PageNum", currentPageCount);
+                bookmarkValues.put("ShowInLibrary", 1);
+                long bookmarkId = db.insert("Bookmarks", null, bookmarkValues);
+                ProdAssert.prodAssert(bookmarkId != -1, "Insertion for bookmark %s failed", partName);
+
+                currentPageCount += pdf.mNumPages;
+            }
+
+            for (MbsProSong.MbsProSongAudio audioFile : mbsProSong.mAudioFiles)
+            {
+                ContentValues audioFileValues = new ContentValues();
+                audioFileValues.put("SongId", songId);
+                audioFileValues.put("Title", filenameNoExtension(audioFile.mFilename));
+                audioFileValues.put("File", String.format("%s/%s", mbsProSong.mName, audioFile.mFilename));
+                audioFileValues.put("LastModified", audioFile.mLastModified);
+                long audioFileId = db.insert("AudioFiles", null, audioFileValues);
+                ProdAssert.prodAssert(audioFileId != -1, "Insertion for audio file %s failed", audioFile.mFilename);
             }
         }
         db.close();
@@ -100,5 +130,25 @@ public class MbsProDatabaseManager
     private void validateDbUriKnown()
     {
         ProdAssert.notNull(mDbUri);
+    }
+
+    private static String getPartName(String filename)
+    {
+        int dashIndex = filename.lastIndexOf('-');
+        if (dashIndex == -1)
+        {
+            return null;
+        }
+
+        int dotIndex = filename.indexOf('.', dashIndex);
+        ProdAssert.prodAssert(dotIndex > -1, "Could not parse part name, no . in %s", filename);
+        return filename.substring(dashIndex + 1, dotIndex).trim();
+    }
+
+    private static String filenameNoExtension(String filename)
+    {
+        int dotIndex = filename.lastIndexOf('.');
+        ProdAssert.prodAssert(dotIndex > -1, "Could not find extension in filename %s", filename);
+        return filename.substring(0, dotIndex);
     }
 }

@@ -96,6 +96,7 @@ public class SongFileManager
             }
 
             List<MbsProSong.MbsProSongPdf> pdfs = new ArrayList<>();
+            List<MbsProSong.MbsProSongAudio> audioFiles = new ArrayList<>();
             for (DocumentFile songDirFile : rootDirFile.listFiles())
             {
                 if (isGenPdf(songDirFile))
@@ -103,9 +104,14 @@ public class SongFileManager
                     pdfs.add(new MbsProSong.MbsProSongPdf(
                         songDirFile.getName(), getPdfNumPages(songDirFile), songDirFile.lastModified()));
                 }
+                else if (isAudio(songDirFile))
+                {
+                    audioFiles.add(new MbsProSong.MbsProSongAudio(
+                            songDirFile.getName(), songDirFile.lastModified()));
+                }
             }
 
-            songs.add(new MbsProSong(rootDirFile.getName(), pdfs));
+            songs.add(new MbsProSong(rootDirFile.getName(), pdfs, audioFiles));
         }
 
         return songs;
@@ -149,5 +155,12 @@ public class SongFileManager
         ProdAssert.notNull(mimeType);
         ProdAssert.notNull(filename);
         return mimeType.equals("application/pdf") && filename.endsWith(".gen.pdf");
+    }
+
+    private static boolean isAudio(DocumentFile documentFile)
+    {
+        String mimeType = documentFile.getType();
+        ProdAssert.notNull(mimeType);
+        return mimeType.startsWith("audio");
     }
 }
