@@ -67,6 +67,22 @@ public class SongFileManager
         }
     }
 
+    public Uri findMobileSheetsDbFile(Uri directoryUri)
+    {
+        final String MBS_DB_FILENAME = "mobilesheets.db";
+
+        Uri mbsProDbUri = null;
+        for (DocumentFile file : DocumentFileUtils.safeDirectoryFromTreeUri(mContext, directoryUri).listFiles())
+        {
+            if (file.getName().equals(MBS_DB_FILENAME))
+            {
+                ProdAssert.prodAssert(mbsProDbUri == null, "Found multiple files named %s", MBS_DB_FILENAME);
+                mbsProDbUri = file.getUri();
+            }
+        }
+        return mbsProDbUri;
+    }
+
     public List<MbsProSong> createMbsProSongsFromDirectory(Uri directoryUri) throws IOException
     {
         DocumentFile directory = DocumentFileUtils.safeDirectoryFromTreeUri(mContext, directoryUri);

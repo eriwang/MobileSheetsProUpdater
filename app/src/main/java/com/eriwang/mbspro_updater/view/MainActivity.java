@@ -1,7 +1,6 @@
 package com.eriwang.mbspro_updater.view;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.documentfile.provider.DocumentFile;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -165,19 +164,12 @@ public class MainActivity extends AppCompatActivity
         final Uri saveLocationUri = result.getData();
         ProdAssert.notNull(saveLocationUri);
 
-        // TODO: probably shouldn't be done here
-        Uri mbsProDbUri = null;
-        for (DocumentFile file : DocumentFile.fromTreeUri(this, saveLocationUri).listFiles())
-        {
-            if (file.getName().equals("mobilesheets.db"))
-            {
-                mbsProDbUri = file.getUri();
-            }
-        }
-        ProdAssert.notNull(mbsProDbUri);
-        mMbsProDatabaseManager.setDbUri(mbsProDbUri);
-
-        taskExecute(() -> mSongFileManager.createMbsProSongsFromDirectory(saveLocationUri))
+        taskExecute(() -> mSongFileManager.findMobileSheetsDbFile(saveLocationUri))
+                .onSuccessTask(mbsProDbUri -> taskExecute(() -> {
+                    ProdAssert.notNull(mbsProDbUri);
+                    mMbsProDatabaseManager.setDbUri(mbsProDbUri);
+                    return mSongFileManager.createMbsProSongsFromDirectory(saveLocationUri);
+                }))
                 .onSuccessTask(songs -> taskExecuteVoid(() -> {
                     ProdAssert.notNull(songs);
                     mMbsProDatabaseManager.insertSongsIntoDb(songs);
