@@ -1,60 +1,57 @@
 package com.eriwang.mbspro_updater.drive;
 
-import com.google.android.gms.tasks.Task;
-import com.google.android.gms.tasks.Tasks;
+import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.google.api.services.drive.model.File;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 
 public class SongFinder
 {
-    private final Executor mExecutor;
     private final DriveWrapper mDrive;
 
     public SongFinder(DriveWrapper drive)
     {
-        mExecutor = Executors.newSingleThreadExecutor();
         mDrive = drive;
     }
 
-    public Task<List<Song>> findSongsRecursivelyInDirectory(String directoryId)
+    /*
+     * Some assumptions on songs that might need to be revisited:
+     *  - A directory with no child directories is a song (breaks rather easily, possible solution is to include
+     * any directory with pdfs/ audio, and have user manually exclude directories)
+     *  - There is only one song per directory (e.g. if I see pdfs from three different "songs" in one directory,
+     *  this will still count them all as the same song)
+     */
+    public List<DriveSong> findSongsRecursivelyInDirectoryId(String directoryId) throws IOException
     {
-        return Tasks.call(mExecutor, () ->
-                findSongsRecursivelyInDirectoryForeground(mDrive.getFileMetadata(directoryId)));
+        return findSongsRecursivelyInDirectory(mDrive.getFileMetadata(directoryId));
     }
 
-    private List<Song> findSongsRecursivelyInDirectoryForeground(File directory) throws IOException
+    private List<DriveSong> findSongsRecursivelyInDirectory(File directory) throws IOException
     {
-        /*
-         * Some assumptions on songs that might need to be revisited:
-         *  - A directory with no child directories is a song (breaks rather easily, possible solution is to include
-         * any directory with pdfs/ audio, and have user manually exclude directories)
-         *  - There is only one song per directory (e.g. if I see pdfs from three different "songs" in one directory,
-         *  this will still count them all as the same song)
-         */
+        ProdAssert.prodAssert(DriveUtils.isFolder(directory),
+                "Given id=%s name=%s is not a directory", directory.getId(), directory.getName());
+
         boolean dirIsSong = true;
-        ArrayList<Song> songs = new ArrayList<>();
+        ArrayList<DriveSong> driveSongs = new ArrayList<>();
         List<File> dirContents = mDrive.listDirectory(directory.getId());
         for (File file : dirContents)
         {
             if (DriveUtils.isFolder(file))
             {
                 dirIsSong = false;
-                songs.addAll(findSongsRecursivelyInDirectoryForeground(file));
+                driveSongs.addAll(findSongsRecursivelyInDirectory(file));
             }
         }
 
         return (dirIsSong) ?
                 Collections.singletonList(createSongFromDirContents(directory.getName(), dirContents)) :
-                songs;
+                driveSongs;
     }
 
-    private static Song createSongFromDirContents(String dirName, List<File> dirContents)
+    private static DriveSong createSongFromDirContents(String dirName, List<File> dirContents)
     {
         ArrayList<File> pdfFiles = new ArrayList<>();
         ArrayList<File> audioFiles = new ArrayList<>();
@@ -69,6 +66,6 @@ public class SongFinder
                 audioFiles.add(file);
             }
         }
-        return new Song(dirName, pdfFiles, audioFiles);
+        return new DriveSong(dirName, pdfFiles, audioFiles);
     }
 }

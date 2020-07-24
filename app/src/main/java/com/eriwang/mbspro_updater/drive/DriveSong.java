@@ -4,13 +4,13 @@ import com.google.api.services.drive.model.File;
 
 import java.util.List;
 
-public class Song
+public class DriveSong
 {
     public final String mName;
     public final List<File> mPdfFiles;
     public final List<File> mAudioFiles;
 
-    public Song(String name, List<File> pdfFiles, List<File> audioFiles)
+    public DriveSong(String name, List<File> pdfFiles, List<File> audioFiles)
     {
         mName = name;
         mPdfFiles = pdfFiles;
