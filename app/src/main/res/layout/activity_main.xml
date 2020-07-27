@@ -10,20 +10,15 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent">
         <Button
-                android:id="@+id/copy_test"
+                android:id="@+id/force_sync_now"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Download Drive Songs" />
+                android:text="@string/force_sync_now_btn_text"/>
         <Button
-                android:id="@+id/db_test"
+                android:id="@+id/schedule_sync_in_background"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Test DB" />
-        <Button
-                android:id="@+id/sync_test"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Test sync"/>
+                android:text="@string/sync_in_background"/>
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

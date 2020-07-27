@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">MobileSheetsPro Updater</string>
+    <string name="force_sync_now_btn_text">Force Sync Now</string>
+    <string name="sync_in_background">Sync in Background</string>
 </resources>

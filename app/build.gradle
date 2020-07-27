@@ -57,3 +57,10 @@ dependencies {
 
     implementation "androidx.documentfile:documentfile:1.0.1"
 }
+
+configurations {
+    all {
+        exclude module: 'httpclient'
+        exclude module: 'commons-logging'
+    }
+}
