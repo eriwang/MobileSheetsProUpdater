@@ -10,10 +10,6 @@ import android.util.Log;
 
 import com.eriwang.mbspro_updater.R;
 import com.eriwang.mbspro_updater.drive.DriveWrapper;
-import com.eriwang.mbspro_updater.drive.DriveSongFinder;
-import com.eriwang.mbspro_updater.mbspro.MbsProDatabaseManager;
-import com.eriwang.mbspro_updater.mbspro.MbsProSongFileManager;
-import com.eriwang.mbspro_updater.mbspro.MbsProSongFinder;
 import com.eriwang.mbspro_updater.sync.SongSyncManager;
 import com.eriwang.mbspro_updater.utils.FunctionWrapper;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
@@ -35,18 +31,12 @@ public class MainActivity extends AppCompatActivity
 {
     private static final String TAG = "Main";
     private static final int REQ_CODE_SIGN_IN = 1;
-    private static final int REQ_CODE_DOWNLOAD_DRIVE_SONGS = 2;
-    private static final int REQ_CODE_DB_TEST = 3;
-    private static final int REQ_CODE_SYNC_TEST = 4;
+    private static final int REQ_CODE_SYNC_TEST = 2;
 
     private static final String TEST_FOLDER_ROOT_ID = "11HTp4Y8liv9Oc0Sof0bxvlsGSLmQAvl4";
 
     private Executor mExecutor;
     private DriveWrapper mDrive;
-    private DriveSongFinder mDriveSongFinder;
-    private MbsProSongFinder mMbsProSongFinder;
-    private MbsProSongFileManager mMbsProSongFileManager;
-    private MbsProDatabaseManager mMbsProDatabaseManager;
     private SongSyncManager mSongSyncManager;
 
     @Override
@@ -57,14 +47,9 @@ public class MainActivity extends AppCompatActivity
 
         mExecutor = Executors.newSingleThreadExecutor();
         mDrive = new DriveWrapper();
-        mDriveSongFinder = new DriveSongFinder(mDrive);
-        mMbsProSongFinder = new MbsProSongFinder(getApplicationContext());
-        mMbsProSongFileManager = new MbsProSongFileManager(mDrive, getApplicationContext());
-        mMbsProDatabaseManager = new MbsProDatabaseManager(getContentResolver());
-        mSongSyncManager = new SongSyncManager(mDriveSongFinder, mMbsProSongFinder, mMbsProSongFileManager,
-                mMbsProDatabaseManager);
+        mSongSyncManager = new SongSyncManager(mDrive, getApplicationContext());
 
-        findViewById(R.id.copy_test).setOnClickListener(view -> {
+        findViewById(R.id.sync_test).setOnClickListener(view -> {
             // TODO: should explicitly tell user what they should be selecting. also sanity check after that the db
             //       is there
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
@@ -72,20 +57,6 @@ public class MainActivity extends AppCompatActivity
                     .addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
 
             // TODO: specify initial URI?
-            startActivityForResult(intent, REQ_CODE_DOWNLOAD_DRIVE_SONGS);
-        });
-        findViewById(R.id.db_test).setOnClickListener(view -> {
-            // TODO: remove
-            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    .addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            startActivityForResult(intent, REQ_CODE_DB_TEST);
-        });
-        findViewById(R.id.sync_test).setOnClickListener(view -> {
-            // TODO: remove
-            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    .addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             startActivityForResult(intent, REQ_CODE_SYNC_TEST);
         });
 
@@ -100,14 +71,6 @@ public class MainActivity extends AppCompatActivity
         {
         case REQ_CODE_SIGN_IN:
             handleSignInResult(resultCode, resultData);
-            break;
-
-        case REQ_CODE_DOWNLOAD_DRIVE_SONGS:
-            handleDownloadDriveSongsResult(resultCode, resultData);
-            break;
-
-        case REQ_CODE_DB_TEST:
-            handleDbTest(resultCode, resultData);
             break;
 
         case REQ_CODE_SYNC_TEST:
@@ -156,7 +119,7 @@ public class MainActivity extends AppCompatActivity
                 .addOnFailureListener(exception -> Log.e(TAG, "Unable to sign in.", exception));
     }
 
-    private void handleDownloadDriveSongsResult(int resultCode, Intent result)
+    private void handleSyncTest(int resultCode, Intent result)
     {
         // TODO: actual error handling
         if (resultCode != Activity.RESULT_OK || result == null)
@@ -167,51 +130,7 @@ public class MainActivity extends AppCompatActivity
         final Uri saveLocationUri = result.getData();
         ProdAssert.notNull(saveLocationUri);
 
-        taskExecute(() -> mDriveSongFinder.findSongsRecursivelyInDirectoryId(TEST_FOLDER_ROOT_ID))
-                .onSuccessTask(songs -> taskExecuteVoid(() ->
-                        mMbsProSongFileManager.downloadSongsToDirectory(songs, saveLocationUri)))
-                .addOnFailureListener(exception -> Log.e(TAG, "Failed directory search or song download", exception));
-    }
-
-    private void handleDbTest(int resultCode, Intent result)
-    {
-        if (resultCode != Activity.RESULT_OK || result == null)
-        {
-            return;
-        }
-
-        final Uri saveLocationUri = result.getData();
-        ProdAssert.notNull(saveLocationUri);
-
-        taskExecute(() -> mMbsProSongFileManager.findMobileSheetsDbFile(saveLocationUri))
-                .onSuccessTask(mbsProDbUri -> taskExecute(() -> {
-                    ProdAssert.notNull(mbsProDbUri);
-                    mMbsProDatabaseManager.setDbUri(mbsProDbUri);
-                    return mMbsProSongFinder.findSongsInDirectoryUri(saveLocationUri);
-                }))
-                .onSuccessTask(songs -> taskExecuteVoid(() -> {
-                    ProdAssert.notNull(songs);
-                    mMbsProDatabaseManager.insertSongsIntoDb(songs);
-                }))
-                .addOnFailureListener(exception -> Log.e(TAG, "Couldn't create MBS Pro Songs", exception));
-    }
-
-    private void handleSyncTest(int resultCode, Intent result)
-    {
-        if (resultCode != Activity.RESULT_OK || result == null)
-        {
-            return;
-        }
-
-        final Uri saveLocationUri = result.getData();
-        ProdAssert.notNull(saveLocationUri);
-
-        taskExecute(() -> mMbsProSongFileManager.findMobileSheetsDbFile(saveLocationUri))
-                .onSuccessTask(mbsProDbUri -> taskExecuteVoid(() -> {
-                    ProdAssert.notNull(mbsProDbUri);
-                    mMbsProDatabaseManager.setDbUri(mbsProDbUri);
-                    mSongSyncManager.syncMbsProWithDrive(TEST_FOLDER_ROOT_ID, saveLocationUri);
-                }))
+        taskExecuteVoid(() -> mSongSyncManager.syncMbsProWithDrive(TEST_FOLDER_ROOT_ID, saveLocationUri))
                 .addOnFailureListener(exception -> Log.e(TAG, "Sync failed", exception));
     }
 

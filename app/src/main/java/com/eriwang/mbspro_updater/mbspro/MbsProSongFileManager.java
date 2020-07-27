@@ -2,7 +2,6 @@ package com.eriwang.mbspro_updater.mbspro;
 
 import android.content.Context;
 import android.net.Uri;
-import android.util.Log;
 
 import androidx.documentfile.provider.DocumentFile;
 
@@ -12,19 +11,16 @@ import com.eriwang.mbspro_updater.utils.DocumentFileUtils;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.google.api.services.drive.model.File;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 
 public class MbsProSongFileManager
 {
     private static final String TAG = "SongFileManager";
+    private static final String MBS_DB_FILENAME = "mobilesheets.db";
 
     private final DriveWrapper mDrive;
     private final Context mContext;
-    // TODO: directoryUri should live on this class
+    private Uri mDirectoryUri;
 
     public MbsProSongFileManager(DriveWrapper drive, Context context)
     {
@@ -32,33 +28,17 @@ public class MbsProSongFileManager
         mContext = context;
     }
 
-    // TODO: this method goes away
-    public void downloadSongsToDirectory(List<DriveSong> driveSongs, Uri directoryUri) throws IOException
+    public void setDirectoryUri(Uri directoryUri)
     {
-        validateNoDuplicateSongNames(driveSongs);
-        DocumentFile directory = DocumentFileUtils.safeDirectoryFromTreeUri(mContext, directoryUri);
-
-        // For simplicity, we do a clean download (i.e. clearing all folders) each time. To be changed in the future.
-        for (DocumentFile file : directory.listFiles())
-        {
-            if (file.isDirectory())
-            {
-                ProdAssert.prodAssert(file.delete(), "Deletion of dir %s failed", directory.getName());
-            }
-        }
-
-        for (DriveSong driveSong : driveSongs)
-        {
-            downloadNewDriveSongToDirectory(driveSong, directoryUri);
-        }
+        mDirectoryUri = directoryUri;
     }
 
-    public Uri findMobileSheetsDbFile(Uri directoryUri)
+    public Uri findMobileSheetsDbFile()
     {
-        final String MBS_DB_FILENAME = "mobilesheets.db";
+        validateDirectoryUriSet();
 
         Uri mbsProDbUri = null;
-        for (DocumentFile file : DocumentFileUtils.safeDirectoryFromTreeUri(mContext, directoryUri).listFiles())
+        for (DocumentFile file : DocumentFileUtils.safeDirectoryFromTreeUri(mContext, mDirectoryUri).listFiles())
         {
             if (file.getName().equals(MBS_DB_FILENAME))
             {
@@ -69,11 +49,11 @@ public class MbsProSongFileManager
         return mbsProDbUri;
     }
 
-    // TODO: rethink a lot of this stuff
-    public void downloadNewDriveSongToDirectory(DriveSong driveSong, Uri directoryUri) throws IOException
+    public void downloadNewDriveSongToDirectory(DriveSong driveSong) throws IOException
     {
-        Log.d(TAG, String.format("Downloading files for song %s", driveSong.mName));
-        DocumentFile songDirectory = DocumentFileUtils.safeDirectoryFromTreeUri(mContext, directoryUri)
+        validateDirectoryUriSet();
+
+        DocumentFile songDirectory = DocumentFileUtils.safeDirectoryFromTreeUri(mContext, mDirectoryUri)
                 .createDirectory(driveSong.mName);
         ProdAssert.notNull(songDirectory);
 
@@ -95,15 +75,17 @@ public class MbsProSongFileManager
         mDrive.downloadFile(driveFile.getId(), mContext.getContentResolver().openOutputStream(newFile.getUri()));
     }
 
-    public void downloadNewDriveFileToMbsProSongDirectory(File driveFile, MbsProSong mbsProSong, Uri directoryUri)
+    public void downloadNewDriveFileToMbsProSongDirectory(File driveFile, MbsProSong mbsProSong)
             throws IOException
     {
-        downloadDriveFileToDirectory(safeGetMbsProSongDirectory(mbsProSong, directoryUri), driveFile);
+        validateDirectoryUriSet();
+        downloadDriveFileToDirectory(safeGetMbsProSongDirectory(mbsProSong), driveFile);
     }
 
-    public void deleteMbsProSong(MbsProSong mbsProSong, Uri directoryUri)
+    public void deleteMbsProSong(MbsProSong mbsProSong)
     {
-        safeGetMbsProSongDirectory(mbsProSong, directoryUri).delete();
+        validateDirectoryUriSet();
+        safeGetMbsProSongDirectory(mbsProSong).delete();
     }
 
     public void deleteMbsProFile(DocumentFile mbsProFile)
@@ -118,22 +100,18 @@ public class MbsProSongFileManager
         mDrive.downloadFile(driveFile.getId(), mContext.getContentResolver().openOutputStream(mbsProFile.getUri()));
     }
 
-    private DocumentFile safeGetMbsProSongDirectory(MbsProSong mbsProSong, Uri directoryUri)
+    private void validateDirectoryUriSet()
     {
-        DocumentFile songDirectory = DocumentFileUtils.safeDirectoryFromTreeUri(mContext, directoryUri)
+        ProdAssert.notNull(mDirectoryUri);
+    }
+
+    private DocumentFile safeGetMbsProSongDirectory(MbsProSong mbsProSong)
+    {
+        DocumentFile songDirectory = DocumentFileUtils.safeDirectoryFromTreeUri(mContext, mDirectoryUri)
                 .findFile(mbsProSong.mName);
         ProdAssert.notNull(songDirectory);
         ProdAssert.prodAssert(songDirectory.isDirectory(),
                 "DocumentFile for song name %s is not a directory", mbsProSong.mName);
         return songDirectory;
-    }
-
-    private static void validateNoDuplicateSongNames(List<DriveSong> driveSongs)
-    {
-        Set<String> songNames = new HashSet<>();
-        for (DriveSong driveSong : driveSongs)
-        {
-            ProdAssert.prodAssert(songNames.add(driveSong.mName), "Found duplicate song name %s", driveSong.mName);
-        }
     }
 }

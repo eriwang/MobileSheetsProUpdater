@@ -1,5 +1,6 @@
 package com.eriwang.mbspro_updater.sync;
 
+import android.content.Context;
 import android.net.Uri;
 import android.util.Log;
 
@@ -7,6 +8,7 @@ import androidx.documentfile.provider.DocumentFile;
 
 import com.eriwang.mbspro_updater.drive.DriveSong;
 import com.eriwang.mbspro_updater.drive.DriveSongFinder;
+import com.eriwang.mbspro_updater.drive.DriveWrapper;
 import com.eriwang.mbspro_updater.mbspro.MbsProDatabaseManager;
 import com.eriwang.mbspro_updater.mbspro.MbsProSong;
 import com.eriwang.mbspro_updater.mbspro.MbsProSongFileManager;
@@ -33,19 +35,20 @@ public class SongSyncManager
     private final MbsProSongFileManager mMbsProSongFileManager;
     private final MbsProDatabaseManager mMbsProDatabaseManager;
 
-    public SongSyncManager(DriveSongFinder driveSongFinder, MbsProSongFinder mbsProSongFinder,
-                           MbsProSongFileManager mbsProSongFileManager, MbsProDatabaseManager mbsProDatabaseManager)
+    public SongSyncManager(DriveWrapper drive, Context context)
     {
-        mDriveSongFinder = driveSongFinder;
-        mMbsProSongFinder = mbsProSongFinder;
-        mMbsProSongFileManager = mbsProSongFileManager;
-        mMbsProDatabaseManager = mbsProDatabaseManager;
+        mDriveSongFinder = new DriveSongFinder(drive);
+        mMbsProSongFinder = new MbsProSongFinder(context);
+        mMbsProSongFileManager = new MbsProSongFileManager(drive, context);
+        mMbsProDatabaseManager = new MbsProDatabaseManager(context.getContentResolver());
     }
 
-    // medium term the main activity shouldn't need to know anything about drive (maybe besides auth) or mbs pro, just
-    // this class.
     public void syncMbsProWithDrive(String driveDirectoryId, Uri mbsProDirectoryUri) throws IOException
     {
+        // TODO: should be able to set both of these earlier in the object lifetime on an "initialization-like" step
+        mMbsProSongFileManager.setDirectoryUri(mbsProDirectoryUri);
+        mMbsProDatabaseManager.setDbUri(mMbsProSongFileManager.findMobileSheetsDbFile());
+
         Map<String, DriveSong> songNameToDriveSong = validateDriveSongsAndCreateMap(
                 mDriveSongFinder.findSongsRecursivelyInDirectoryId(driveDirectoryId));
         Map<String, MbsProSong> songNameToMbsProSong = validateMbsProSongsAndCreateMap(
@@ -59,7 +62,7 @@ public class SongSyncManager
         {
             Log.d(TAG, String.format("Found extra drive song %s, downloading", extraDriveSongName));
             DriveSong driveSong = MapUtils.safeGet(songNameToDriveSong, extraDriveSongName);
-            mMbsProSongFileManager.downloadNewDriveSongToDirectory(driveSong, mbsProDirectoryUri);
+            mMbsProSongFileManager.downloadNewDriveSongToDirectory(driveSong);
         }
 
         Log.d(TAG, "Syncing extra MBS Pro songs");
@@ -68,7 +71,7 @@ public class SongSyncManager
         {
             Log.d(TAG, String.format("Found extra MBS Pro song %s, deleting", extraMbsProSongName));
             MbsProSong mbsProSong = MapUtils.safeGet(songNameToMbsProSong, extraMbsProSongName);
-            mMbsProSongFileManager.deleteMbsProSong(mbsProSong, mbsProDirectoryUri);
+            mMbsProSongFileManager.deleteMbsProSong(mbsProSong);
         }
 
         Log.d(TAG, "Syncing common songs");
@@ -91,7 +94,7 @@ public class SongSyncManager
             {
                 Log.d(TAG, String.format("Found extra drive file %s, downloading", extraDriveFilename));
                 mMbsProSongFileManager.downloadNewDriveFileToMbsProSongDirectory(
-                        MapUtils.safeGet(driveFilenameToFile, extraDriveFilename), mbsProSong, mbsProDirectoryUri);
+                        MapUtils.safeGet(driveFilenameToFile, extraDriveFilename), mbsProSong);
             }
 
             Sets.SetView<String> extraMbsProFilenames = Sets.difference(mbsProFilenames, driveFilenames);

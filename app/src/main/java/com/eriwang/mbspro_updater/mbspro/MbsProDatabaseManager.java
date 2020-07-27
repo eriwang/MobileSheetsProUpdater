@@ -6,7 +6,6 @@ import android.database.sqlite.SQLiteDatabase;
 import android.graphics.pdf.PdfRenderer;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
-import android.util.Log;
 
 import androidx.documentfile.provider.DocumentFile;
 
@@ -107,8 +106,11 @@ public class MbsProDatabaseManager
         db.close();
 
         writeToDatabase(tempDbFile);
+    }
 
-        Log.d("db_test", "Finished writing db with songs");
+    private void validateDbUriKnown()
+    {
+        ProdAssert.notNull(mDbUri);
     }
 
     // The Android Storage Access Framework makes accessing the actual MBS Pro database java.io.File object impossible.
@@ -138,9 +140,21 @@ public class MbsProDatabaseManager
         newDbFileInputStream.close();
     }
 
-    private void validateDbUriKnown()
+    // Putting this here is for convenience, keeping the audio/ pdfs as DocumentFiles simplifies some other code, and
+    // there isn't a big downside to putting it here instead besides that it's a bit weird. That being said this is
+    // probably a smell that should get cleaned up at some point.
+    private int getPdfNumPages(DocumentFile pdfFile) throws IOException
     {
-        ProdAssert.notNull(mDbUri);
+        InputStream pdfInputStream = mContentResolver.openInputStream(pdfFile.getUri());
+        ProdAssert.notNull(pdfInputStream);
+
+        java.io.File tempPdfFile = java.io.File.createTempFile("songDirFile", "pdf");
+        FileOutputStream tempPdfFileOutputStream = new FileOutputStream(tempPdfFile);
+        StreamUtils.writeInputToOutputStream(pdfInputStream, tempPdfFileOutputStream);
+        tempPdfFileOutputStream.close();
+
+        return new PdfRenderer(ParcelFileDescriptor.open(tempPdfFile, ParcelFileDescriptor.MODE_READ_ONLY))
+                .getPageCount();
     }
 
     private static String getPartName(String filename)
@@ -161,22 +175,5 @@ public class MbsProDatabaseManager
         int dotIndex = filename.lastIndexOf('.');
         ProdAssert.prodAssert(dotIndex > -1, "Could not find extension in filename %s", filename);
         return filename.substring(0, dotIndex);
-    }
-
-    // Putting this here is for convenience, keeping the audio/ pdfs as DocumentFiles simplifies some other code, and
-    // there isn't a big downside to putting it here instead besides that it's a bit weird. That being said this is
-    // probably a smell that should get cleaned up at some point.
-    private int getPdfNumPages(DocumentFile pdfFile) throws IOException
-    {
-        InputStream pdfInputStream = mContentResolver.openInputStream(pdfFile.getUri());
-        ProdAssert.notNull(pdfInputStream);
-
-        java.io.File tempPdfFile = java.io.File.createTempFile("songDirFile", "pdf");
-        FileOutputStream tempPdfFileOutputStream = new FileOutputStream(tempPdfFile);
-        StreamUtils.writeInputToOutputStream(pdfInputStream, tempPdfFileOutputStream);
-        tempPdfFileOutputStream.close();
-
-        return new PdfRenderer(ParcelFileDescriptor.open(tempPdfFile, ParcelFileDescriptor.MODE_READ_ONLY))
-                .getPageCount();
     }
 }
