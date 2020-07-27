@@ -14,6 +14,7 @@ import com.eriwang.mbspro_updater.drive.DriveSongFinder;
 import com.eriwang.mbspro_updater.mbspro.MbsProDatabaseManager;
 import com.eriwang.mbspro_updater.mbspro.MbsProSongFileManager;
 import com.eriwang.mbspro_updater.mbspro.MbsProSongFinder;
+import com.eriwang.mbspro_updater.sync.SongSyncManager;
 import com.eriwang.mbspro_updater.utils.FunctionWrapper;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
@@ -36,6 +37,7 @@ public class MainActivity extends AppCompatActivity
     private static final int REQ_CODE_SIGN_IN = 1;
     private static final int REQ_CODE_DOWNLOAD_DRIVE_SONGS = 2;
     private static final int REQ_CODE_DB_TEST = 3;
+    private static final int REQ_CODE_SYNC_TEST = 4;
 
     private static final String TEST_FOLDER_ROOT_ID = "11HTp4Y8liv9Oc0Sof0bxvlsGSLmQAvl4";
 
@@ -45,6 +47,7 @@ public class MainActivity extends AppCompatActivity
     private MbsProSongFinder mMbsProSongFinder;
     private MbsProSongFileManager mMbsProSongFileManager;
     private MbsProDatabaseManager mMbsProDatabaseManager;
+    private SongSyncManager mSongSyncManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -58,6 +61,8 @@ public class MainActivity extends AppCompatActivity
         mMbsProSongFinder = new MbsProSongFinder(getApplicationContext());
         mMbsProSongFileManager = new MbsProSongFileManager(mDrive, getApplicationContext());
         mMbsProDatabaseManager = new MbsProDatabaseManager(getContentResolver());
+        mSongSyncManager = new SongSyncManager(mDriveSongFinder, mMbsProSongFinder, mMbsProSongFileManager,
+                mMbsProDatabaseManager);
 
         findViewById(R.id.copy_test).setOnClickListener(view -> {
             // TODO: should explicitly tell user what they should be selecting. also sanity check after that the db
@@ -75,6 +80,13 @@ public class MainActivity extends AppCompatActivity
                     .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     .addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             startActivityForResult(intent, REQ_CODE_DB_TEST);
+        });
+        findViewById(R.id.sync_test).setOnClickListener(view -> {
+            // TODO: remove
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    .addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            startActivityForResult(intent, REQ_CODE_SYNC_TEST);
         });
 
         // TODO: should be more user friendly in the future
@@ -96,6 +108,10 @@ public class MainActivity extends AppCompatActivity
 
         case REQ_CODE_DB_TEST:
             handleDbTest(resultCode, resultData);
+            break;
+
+        case REQ_CODE_SYNC_TEST:
+            handleSyncTest(resultCode, resultData);
             break;
 
         default:
@@ -178,6 +194,25 @@ public class MainActivity extends AppCompatActivity
                     mMbsProDatabaseManager.insertSongsIntoDb(songs);
                 }))
                 .addOnFailureListener(exception -> Log.e(TAG, "Couldn't create MBS Pro Songs", exception));
+    }
+
+    private void handleSyncTest(int resultCode, Intent result)
+    {
+        if (resultCode != Activity.RESULT_OK || result == null)
+        {
+            return;
+        }
+
+        final Uri saveLocationUri = result.getData();
+        ProdAssert.notNull(saveLocationUri);
+
+        taskExecute(() -> mMbsProSongFileManager.findMobileSheetsDbFile(saveLocationUri))
+                .onSuccessTask(mbsProDbUri -> taskExecuteVoid(() -> {
+                    ProdAssert.notNull(mbsProDbUri);
+                    mMbsProDatabaseManager.setDbUri(mbsProDbUri);
+                    mSongSyncManager.syncMbsProWithDrive(TEST_FOLDER_ROOT_ID, saveLocationUri);
+                }))
+                .addOnFailureListener(exception -> Log.e(TAG, "Sync failed", exception));
     }
 
     private <T> Task<T> taskExecute(Callable<T> c)

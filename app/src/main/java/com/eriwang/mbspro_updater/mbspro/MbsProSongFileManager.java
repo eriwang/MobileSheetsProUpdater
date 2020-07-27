@@ -23,6 +23,7 @@ public class MbsProSongFileManager
 
     private final DriveWrapper mDrive;
     private final Context mContext;
+    // TODO: directoryUri should live on this class
 
     public MbsProSongFileManager(DriveWrapper drive, Context context)
     {
@@ -30,6 +31,7 @@ public class MbsProSongFileManager
         mContext = context;
     }
 
+    // TODO: I think this method goes away
     public void downloadSongsToDirectory(List<DriveSong> driveSongs, Uri directoryUri) throws IOException
     {
         validateNoDuplicateSongNames(driveSongs);
@@ -46,18 +48,7 @@ public class MbsProSongFileManager
 
         for (DriveSong driveSong : driveSongs)
         {
-            Log.d(TAG, String.format("Downloading files for song %s", driveSong.mName));
-            DocumentFile songDirectory = directory.createDirectory(driveSong.mName);
-            ProdAssert.notNull(songDirectory);
-
-            for (File file : driveSong.mPdfFiles)
-            {
-                downloadDriveFileToDirectory(songDirectory, file);
-            }
-            for (File file : driveSong.mAudioFiles)
-            {
-                downloadDriveFileToDirectory(songDirectory, file);
-            }
+            downloadNewDriveSongToDirectory(driveSong, directoryUri);
         }
     }
 
@@ -77,12 +68,39 @@ public class MbsProSongFileManager
         return mbsProDbUri;
     }
 
-    private void downloadDriveFileToDirectory(DocumentFile directory, File driveFile) throws IOException
+    public void downloadNewDriveSongToDirectory(DriveSong driveSong, Uri directoryUri) throws IOException
+    {
+        Log.d(TAG, String.format("Downloading files for song %s", driveSong.mName));
+        DocumentFile songDirectory = DocumentFileUtils.safeDirectoryFromTreeUri(mContext, directoryUri)
+                .createDirectory(driveSong.mName);
+        ProdAssert.notNull(songDirectory);
+
+        for (File file : driveSong.mPdfFiles)
+        {
+            downloadDriveFileToDirectory(songDirectory, file);
+        }
+        for (File file : driveSong.mAudioFiles)
+        {
+            downloadDriveFileToDirectory(songDirectory, file);
+        }
+    }
+
+    public void downloadDriveFileToDirectory(DocumentFile directory, File driveFile) throws IOException
     {
         DocumentFile newFile = directory.createFile(driveFile.getMimeType(), driveFile.getName());
         ProdAssert.notNull(newFile);
 
         mDrive.downloadFile(driveFile.getId(), mContext.getContentResolver().openOutputStream(newFile.getUri()));
+    }
+
+    public void deleteMbsProSong(MbsProSong mbsProSong, Uri directoryUri)
+    {
+        DocumentFile songDirectory = DocumentFileUtils.safeDirectoryFromTreeUri(mContext, directoryUri)
+                .findFile(mbsProSong.mName);
+        ProdAssert.notNull(songDirectory);
+        ProdAssert.prodAssert(songDirectory.isDirectory(),
+                "DocumentFile for song name %s is not a directory", mbsProSong.mName);
+        songDirectory.delete();
     }
 
     private static void validateNoDuplicateSongNames(List<DriveSong> driveSongs)
