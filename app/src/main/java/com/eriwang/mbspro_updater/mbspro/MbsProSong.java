@@ -20,6 +20,8 @@ public class MbsProSong
     public static class MbsProSongPdf
     {
         public final String mFilename;
+        // TODO: can I store the DocumentFile in MbsProSong instead, and have a helper to get numPages on pdfs?
+        //       or even helpers for whatever else i'd actually need?
         public final int mNumPages;
         public final long mLastModified;
 
