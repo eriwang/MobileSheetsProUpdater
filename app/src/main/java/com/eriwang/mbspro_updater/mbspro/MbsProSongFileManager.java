@@ -15,7 +15,6 @@ import java.io.IOException;
 
 public class MbsProSongFileManager
 {
-    private static final String TAG = "SongFileManager";
     private static final String MBS_DB_FILENAME = "mobilesheets.db";
 
     private final DriveWrapper mDrive;
