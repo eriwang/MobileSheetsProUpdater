@@ -1,5 +1,7 @@
 package com.eriwang.mbspro_updater.sync;
 
+import androidx.documentfile.provider.DocumentFile;
+
 import com.eriwang.mbspro_updater.drive.DriveSong;
 import com.eriwang.mbspro_updater.mbspro.MbsProSong;
 import com.eriwang.mbspro_updater.utils.MapUtils;
@@ -38,16 +40,19 @@ public class SongSyncManager
                     MapUtils.SafeGet(songNameToDriveSong, songName).mAudioFiles);
             Set<String> drivePdfFiles = validateAndCreateSetFromDriveFiles(
                     MapUtils.SafeGet(songNameToDriveSong, songName).mPdfFiles);
-            Set<String> mbsProAudioFiles = validateAndCreateSetFromMbsProSongAudio(
+            Set<String> mbsProAudioFiles = validateAndCreateSetFromDocumentFiles(
                     MapUtils.SafeGet(songNameToMbsProSong, songName).mAudioFiles);
-            Set<String> mbsProPdfFiles = validateAndCreateSetFromMbsProSongPdfs(
+            Set<String> mbsProPdfFiles = validateAndCreateSetFromDocumentFiles(
                     MapUtils.SafeGet(songNameToMbsProSong, songName).mPdfs);
 
             // - if drive song has extra files, download them
+            // to download, I need a fileId (which is on the driveFile), and a new file uri. or in filemanager, the
+            // DocumentFile for the containing directory
             Sets.SetView<String> extraDriveAudioFiles = Sets.difference(driveAudioFiles, mbsProAudioFiles);
             Sets.SetView<String> extraDrivePdfFiles = Sets.difference(drivePdfFiles, mbsProPdfFiles);
 
             // - if mbspro song has extra files, delete them
+            // to delete, I need the documentFile
             Sets.SetView<String> extraMbsProAudioFiles = Sets.difference(mbsProAudioFiles, driveAudioFiles);
             Sets.SetView<String> extraMbsProPdfFiles = Sets.difference(mbsProPdfFiles, drivePdfFiles);
 
@@ -78,8 +83,8 @@ public class SongSyncManager
         HashMap<String, MbsProSong> songNameToMbsProSong = new HashMap<>();
         for (MbsProSong s : mbsProSongs)
         {
-            validateAndCreateSetFromMbsProSongAudio(s.mAudioFiles);
-            validateAndCreateSetFromMbsProSongPdfs(s.mPdfs);
+            validateAndCreateSetFromDocumentFiles(s.mAudioFiles);
+            validateAndCreateSetFromDocumentFiles(s.mPdfs);
             songNameToMbsProSong.put(s.mName, s);
         }
         return songNameToMbsProSong;
@@ -90,15 +95,9 @@ public class SongSyncManager
         return validateAndCreateSetFromListKeys(driveFiles, File::getName);
     }
 
-    private static Set<String> validateAndCreateSetFromMbsProSongPdfs(List<MbsProSong.MbsProSongPdf> mbsProSongPdfs)
+    private static Set<String> validateAndCreateSetFromDocumentFiles(List<DocumentFile> documentFiles)
     {
-        return validateAndCreateSetFromListKeys(mbsProSongPdfs, (pdf) -> pdf.mFilename);
-    }
-
-    private static Set<String> validateAndCreateSetFromMbsProSongAudio(
-            List<MbsProSong.MbsProSongAudio> mbsProSongAudioFiles)
-    {
-        return validateAndCreateSetFromListKeys(mbsProSongAudioFiles, (audioFile) -> audioFile.mFilename);
+        return validateAndCreateSetFromListKeys(documentFiles, DocumentFile::getName);
     }
 
     private static <T> Set<String> validateAndCreateSetFromListKeys(List<T> list, KeyGetter<T> keyGetter)

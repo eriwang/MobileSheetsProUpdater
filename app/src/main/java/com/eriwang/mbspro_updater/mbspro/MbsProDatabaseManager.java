@@ -3,8 +3,12 @@ package com.eriwang.mbspro_updater.mbspro;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.database.sqlite.SQLiteDatabase;
+import android.graphics.pdf.PdfRenderer;
 import android.net.Uri;
+import android.os.ParcelFileDescriptor;
 import android.util.Log;
+
+import androidx.documentfile.provider.DocumentFile;
 
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.eriwang.mbspro_updater.utils.StreamUtils;
@@ -54,18 +58,22 @@ public class MbsProDatabaseManager
             // TODO: ordering of pdfs is done by the actual ID of the entries in the database. I'd like to have a
             //  sane ordering (for example to start parts alpha order, score last)
             int currentPageCount = 0;
-            for (MbsProSong.MbsProSongPdf pdf : mbsProSong.mPdfs)
+            for (DocumentFile pdf : mbsProSong.mPdfs)
             {
+                int pdfNumPages = getPdfNumPages(pdf);
+                String pdfName = pdf.getName();
+                ProdAssert.notNull(pdfName);
+
                 ContentValues pdfFileValues = new ContentValues();
                 pdfFileValues.put("SongId", songId);
-                pdfFileValues.put("Path", String.format("%s/%s", mbsProSong.mName, pdf.mFilename));
-                pdfFileValues.put("PageOrder", String.format("1-%d", pdf.mNumPages));
-                pdfFileValues.put("LastModified", pdf.mLastModified);
+                pdfFileValues.put("Path", String.format("%s/%s", mbsProSong.mName, pdfName));
+                pdfFileValues.put("PageOrder", String.format("1-%d", pdfNumPages));
+                pdfFileValues.put("LastModified", pdf.lastModified());
                 pdfFileValues.put("Type", 1);  // Not sure if PDF file type or MBS Pro SourceType
                 long pdfFileId = db.insert("Files", null, pdfFileValues);
-                ProdAssert.prodAssert(pdfFileId != -1, "Insertion for pdf file %s failed", pdf.mFilename);
+                ProdAssert.prodAssert(pdfFileId != -1, "Insertion for pdf file %s failed", pdfName);
 
-                String partName = getPartName(pdf.mFilename);
+                String partName = getPartName(pdfName);
                 if (partName == null)
                 {
                     partName = "Score";
@@ -79,18 +87,21 @@ public class MbsProDatabaseManager
                 long bookmarkId = db.insert("Bookmarks", null, bookmarkValues);
                 ProdAssert.prodAssert(bookmarkId != -1, "Insertion for bookmark %s failed", partName);
 
-                currentPageCount += pdf.mNumPages;
+                currentPageCount += pdfNumPages;
             }
 
-            for (MbsProSong.MbsProSongAudio audioFile : mbsProSong.mAudioFiles)
+            for (DocumentFile audioFile : mbsProSong.mAudioFiles)
             {
+                String audioFilename = audioFile.getName();
+                ProdAssert.notNull(audioFilename);
+
                 ContentValues audioFileValues = new ContentValues();
                 audioFileValues.put("SongId", songId);
-                audioFileValues.put("Title", filenameNoExtension(audioFile.mFilename));
-                audioFileValues.put("File", String.format("%s/%s", mbsProSong.mName, audioFile.mFilename));
-                audioFileValues.put("LastModified", audioFile.mLastModified);
+                audioFileValues.put("Title", filenameNoExtension(audioFilename));
+                audioFileValues.put("File", String.format("%s/%s", mbsProSong.mName, audioFilename));
+                audioFileValues.put("LastModified", audioFile.lastModified());
                 long audioFileId = db.insert("AudioFiles", null, audioFileValues);
-                ProdAssert.prodAssert(audioFileId != -1, "Insertion for audio file %s failed", audioFile.mFilename);
+                ProdAssert.prodAssert(audioFileId != -1, "Insertion for audio file %s failed", audioFilename);
             }
         }
         db.close();
@@ -150,5 +161,22 @@ public class MbsProDatabaseManager
         int dotIndex = filename.lastIndexOf('.');
         ProdAssert.prodAssert(dotIndex > -1, "Could not find extension in filename %s", filename);
         return filename.substring(0, dotIndex);
+    }
+
+    // Putting this here is for convenience, keeping the audio/ pdfs as DocumentFiles simplifies some other code, and
+    // there isn't a big downside to putting it here instead besides that it's a bit weird. That being said this is
+    // probably a smell that should get cleaned up at some point.
+    private int getPdfNumPages(DocumentFile pdfFile) throws IOException
+    {
+        InputStream pdfInputStream = mContentResolver.openInputStream(pdfFile.getUri());
+        ProdAssert.notNull(pdfInputStream);
+
+        java.io.File tempPdfFile = java.io.File.createTempFile("songDirFile", "pdf");
+        FileOutputStream tempPdfFileOutputStream = new FileOutputStream(tempPdfFile);
+        StreamUtils.writeInputToOutputStream(pdfInputStream, tempPdfFileOutputStream);
+        tempPdfFileOutputStream.close();
+
+        return new PdfRenderer(ParcelFileDescriptor.open(tempPdfFile, ParcelFileDescriptor.MODE_READ_ONLY))
+                .getPageCount();
     }
 }
