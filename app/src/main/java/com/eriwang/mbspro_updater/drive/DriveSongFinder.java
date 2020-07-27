@@ -8,11 +8,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class SongFinder
+public class DriveSongFinder
 {
     private final DriveWrapper mDrive;
 
-    public SongFinder(DriveWrapper drive)
+    public DriveSongFinder(DriveWrapper drive)
     {
         mDrive = drive;
     }

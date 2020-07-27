@@ -10,9 +10,10 @@ import android.util.Log;
 
 import com.eriwang.mbspro_updater.R;
 import com.eriwang.mbspro_updater.drive.DriveWrapper;
-import com.eriwang.mbspro_updater.drive.SongFinder;
+import com.eriwang.mbspro_updater.drive.DriveSongFinder;
 import com.eriwang.mbspro_updater.mbspro.MbsProDatabaseManager;
-import com.eriwang.mbspro_updater.mbspro.SongFileManager;
+import com.eriwang.mbspro_updater.mbspro.MbsProSongFileManager;
+import com.eriwang.mbspro_updater.mbspro.MbsProSongFinder;
 import com.eriwang.mbspro_updater.utils.FunctionWrapper;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
@@ -40,8 +41,9 @@ public class MainActivity extends AppCompatActivity
 
     private Executor mExecutor;
     private DriveWrapper mDrive;
-    private SongFinder mSongFinder;
-    private SongFileManager mSongFileManager;
+    private DriveSongFinder mDriveSongFinder;
+    private MbsProSongFinder mMbsProSongFinder;
+    private MbsProSongFileManager mMbsProSongFileManager;
     private MbsProDatabaseManager mMbsProDatabaseManager;
 
     @Override
@@ -52,8 +54,9 @@ public class MainActivity extends AppCompatActivity
 
         mExecutor = Executors.newSingleThreadExecutor();
         mDrive = new DriveWrapper();
-        mSongFinder = new SongFinder(mDrive);
-        mSongFileManager = new SongFileManager(mDrive, getApplicationContext());
+        mDriveSongFinder = new DriveSongFinder(mDrive);
+        mMbsProSongFinder = new MbsProSongFinder(getApplicationContext());
+        mMbsProSongFileManager = new MbsProSongFileManager(mDrive, getApplicationContext());
         mMbsProDatabaseManager = new MbsProDatabaseManager(getContentResolver());
 
         findViewById(R.id.copy_test).setOnClickListener(view -> {
@@ -148,9 +151,9 @@ public class MainActivity extends AppCompatActivity
         final Uri saveLocationUri = result.getData();
         ProdAssert.notNull(saveLocationUri);
 
-        taskExecute(() -> mSongFinder.findSongsRecursivelyInDirectoryId(TEST_FOLDER_ROOT_ID))
+        taskExecute(() -> mDriveSongFinder.findSongsRecursivelyInDirectoryId(TEST_FOLDER_ROOT_ID))
                 .onSuccessTask(songs -> taskExecuteVoid(() ->
-                        mSongFileManager.downloadSongsToDirectory(songs, saveLocationUri)))
+                        mMbsProSongFileManager.downloadSongsToDirectory(songs, saveLocationUri)))
                 .addOnFailureListener(exception -> Log.e(TAG, "Failed directory search or song download", exception));
     }
 
@@ -164,11 +167,11 @@ public class MainActivity extends AppCompatActivity
         final Uri saveLocationUri = result.getData();
         ProdAssert.notNull(saveLocationUri);
 
-        taskExecute(() -> mSongFileManager.findMobileSheetsDbFile(saveLocationUri))
+        taskExecute(() -> mMbsProSongFileManager.findMobileSheetsDbFile(saveLocationUri))
                 .onSuccessTask(mbsProDbUri -> taskExecute(() -> {
                     ProdAssert.notNull(mbsProDbUri);
                     mMbsProDatabaseManager.setDbUri(mbsProDbUri);
-                    return mSongFileManager.createMbsProSongsFromDirectory(saveLocationUri);
+                    return mMbsProSongFinder.findSongsInDirectoryUri(saveLocationUri);
                 }))
                 .onSuccessTask(songs -> taskExecuteVoid(() -> {
                     ProdAssert.notNull(songs);
