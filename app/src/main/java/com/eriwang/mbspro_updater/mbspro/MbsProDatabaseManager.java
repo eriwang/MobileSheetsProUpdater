@@ -58,7 +58,7 @@ public class MbsProDatabaseManager
             // TODO: ordering of pdfs is done by the actual ID of the entries in the database. I'd like to have a
             //  sane ordering (for example to start parts alpha order, score last)
             int currentPageCount = 0;
-            for (DocumentFile pdf : mbsProSong.mPdfs)
+            for (DocumentFile pdf : mbsProSong.mPdfFiles)
             {
                 int pdfNumPages = getPdfNumPages(pdf);
                 String pdfName = pdf.getName();

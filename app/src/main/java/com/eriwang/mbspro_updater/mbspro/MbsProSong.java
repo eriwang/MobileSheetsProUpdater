@@ -9,13 +9,13 @@ public class MbsProSong
     public final String mName;
     // TODO: private final int mCreationDate;
 
-    public final List<DocumentFile> mPdfs;
+    public final List<DocumentFile> mPdfFiles;
     public final List<DocumentFile> mAudioFiles;
 
     public MbsProSong(String name, List<DocumentFile> pdfs, List<DocumentFile> audioFiles)
     {
         mName = name;
-        mPdfs = pdfs;
+        mPdfFiles = pdfs;
         mAudioFiles = audioFiles;
     }
 }

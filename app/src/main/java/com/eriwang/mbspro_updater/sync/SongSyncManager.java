@@ -4,6 +4,7 @@ import androidx.documentfile.provider.DocumentFile;
 
 import com.eriwang.mbspro_updater.drive.DriveSong;
 import com.eriwang.mbspro_updater.mbspro.MbsProSong;
+import com.eriwang.mbspro_updater.utils.ListUtils;
 import com.eriwang.mbspro_updater.utils.MapUtils;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.google.api.services.drive.model.File;
@@ -36,71 +37,53 @@ public class SongSyncManager
         Sets.SetView<String> commonSongNames = Sets.intersection(driveSongNames, mbsProSongNames);
         for (String songName : commonSongNames)
         {
-            Set<String> driveAudioFiles = validateAndCreateSetFromDriveFiles(
-                    MapUtils.SafeGet(songNameToDriveSong, songName).mAudioFiles);
-            Set<String> drivePdfFiles = validateAndCreateSetFromDriveFiles(
-                    MapUtils.SafeGet(songNameToDriveSong, songName).mPdfFiles);
-            Set<String> mbsProAudioFiles = validateAndCreateSetFromDocumentFiles(
-                    MapUtils.SafeGet(songNameToMbsProSong, songName).mAudioFiles);
-            Set<String> mbsProPdfFiles = validateAndCreateSetFromDocumentFiles(
-                    MapUtils.SafeGet(songNameToMbsProSong, songName).mPdfs);
+            DriveSong driveSong = MapUtils.safeGet(songNameToDriveSong, songName);
+            MbsProSong mbsProSong = MapUtils.safeGet(songNameToMbsProSong, songName);
+
+            Map<String, File> driveFilenameToFile = createMapUsingListKeys(
+                    ListUtils.concatLists(driveSong.mAudioFiles, driveSong.mPdfFiles), File::getName);
+            Map<String, DocumentFile> mbsProFilenameToFile = createMapUsingListKeys(
+                    ListUtils.concatLists(mbsProSong.mAudioFiles, mbsProSong.mPdfFiles), DocumentFile::getName);
+            Set<String> driveFilenames = driveFilenameToFile.keySet();
+            Set<String> mbsProFilenames = mbsProFilenameToFile.keySet();
 
             // - if drive song has extra files, download them
             // to download, I need a fileId (which is on the driveFile), and a new file uri. or in filemanager, the
             // DocumentFile for the containing directory
-            Sets.SetView<String> extraDriveAudioFiles = Sets.difference(driveAudioFiles, mbsProAudioFiles);
-            Sets.SetView<String> extraDrivePdfFiles = Sets.difference(drivePdfFiles, mbsProPdfFiles);
+            Sets.SetView<String> extraDriveFilenames = Sets.difference(driveFilenames, mbsProFilenames);
 
             // - if mbspro song has extra files, delete them
             // to delete, I need the documentFile
-            Sets.SetView<String> extraMbsProAudioFiles = Sets.difference(mbsProAudioFiles, driveAudioFiles);
-            Sets.SetView<String> extraMbsProPdfFiles = Sets.difference(mbsProPdfFiles, drivePdfFiles);
+            Sets.SetView<String> extraMbsProFilenames = Sets.difference(mbsProFilenames, driveFilenames);
 
             // - if drive song file has later lastModified time than mbspro song file, redownload
-            Sets.SetView<String> commonAudioFiles = Sets.difference(driveAudioFiles, mbsProAudioFiles);
-            Sets.SetView<String> commonPdfFiles = Sets.difference(drivePdfFiles, mbsProPdfFiles);
+            Sets.SetView<String> commonFilenames = Sets.intersection(driveFilenames, mbsProFilenames);
         }
     }
 
     private static Map<String, DriveSong> validateDriveSongsAndCreateMap(List<DriveSong> driveSongs)
     {
-        validateAndCreateSetFromListKeys(driveSongs, (driveSong) -> driveSong.mName);
-
-        HashMap<String, DriveSong> songNameToDriveSong = new HashMap<>();
+        validateListNoDuplicateKeys(driveSongs, (driveSong) -> driveSong.mName);
         for (DriveSong s : driveSongs)
         {
-            validateAndCreateSetFromDriveFiles(s.mAudioFiles);
-            validateAndCreateSetFromDriveFiles(s.mPdfFiles);
-            songNameToDriveSong.put(s.mName, s);
+            validateListNoDuplicateKeys(s.mAudioFiles, File::getName);
+            validateListNoDuplicateKeys(s.mPdfFiles, File::getName);
         }
-        return songNameToDriveSong;
+        return createMapUsingListKeys(driveSongs, (driveSong) -> driveSong.mName);
     }
 
     private static Map<String, MbsProSong> validateMbsProSongsAndCreateMap(List<MbsProSong> mbsProSongs)
     {
-        validateAndCreateSetFromListKeys(mbsProSongs, (mbsProSong) -> mbsProSong.mName);
-
-        HashMap<String, MbsProSong> songNameToMbsProSong = new HashMap<>();
+        validateListNoDuplicateKeys(mbsProSongs, (mbsProSong) -> mbsProSong.mName);
         for (MbsProSong s : mbsProSongs)
         {
-            validateAndCreateSetFromDocumentFiles(s.mAudioFiles);
-            validateAndCreateSetFromDocumentFiles(s.mPdfs);
-            songNameToMbsProSong.put(s.mName, s);
+            validateListNoDuplicateKeys(s.mAudioFiles, DocumentFile::getName);
+            validateListNoDuplicateKeys(s.mPdfFiles, DocumentFile::getName);
         }
-        return songNameToMbsProSong;
+        return createMapUsingListKeys(mbsProSongs, (mbsProSong) -> mbsProSong.mName);
     }
 
-    private static Set<String> validateAndCreateSetFromDriveFiles(List<File> driveFiles)
-    {
-        return validateAndCreateSetFromListKeys(driveFiles, File::getName);
-    }
-
-    private static Set<String> validateAndCreateSetFromDocumentFiles(List<DocumentFile> documentFiles)
-    {
-        return validateAndCreateSetFromListKeys(documentFiles, DocumentFile::getName);
-    }
-
-    private static <T> Set<String> validateAndCreateSetFromListKeys(List<T> list, KeyGetter<T> keyGetter)
+    private static <T> void validateListNoDuplicateKeys(List<T> list, KeyGetter<T> keyGetter)
     {
         Set<String> keys = new HashSet<>();
         for (T item : list)
@@ -108,7 +91,16 @@ public class SongSyncManager
             String key = keyGetter.getKey(item);
             ProdAssert.prodAssert(keys.add(key), "Duplicate item key %s found", key);
         }
-        return keys;
+    }
+
+    private static <T> Map<String, T> createMapUsingListKeys(List<T> list, KeyGetter<T> keyGetter)
+    {
+        Map<String, T> keyToValue = new HashMap<>();
+        for (T item : list)
+        {
+            keyToValue.put(keyGetter.getKey(item), item);
+        }
+        return keyToValue;
     }
 }
 

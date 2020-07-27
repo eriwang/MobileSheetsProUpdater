@@ -4,7 +4,7 @@ import java.util.Map;
 
 public class MapUtils
 {
-    public static <K, V> V SafeGet(Map<K, V> keyToValue, K key)
+    public static <K, V> V safeGet(Map<K, V> keyToValue, K key)
     {
         V value = keyToValue.get(key);
         ProdAssert.notNull(value);
