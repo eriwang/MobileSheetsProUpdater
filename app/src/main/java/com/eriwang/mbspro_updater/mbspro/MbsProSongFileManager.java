@@ -12,6 +12,7 @@ import com.eriwang.mbspro_updater.utils.DocumentFileUtils;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.google.api.services.drive.model.File;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
@@ -31,7 +32,7 @@ public class MbsProSongFileManager
         mContext = context;
     }
 
-    // TODO: I think this method goes away
+    // TODO: this method goes away
     public void downloadSongsToDirectory(List<DriveSong> driveSongs, Uri directoryUri) throws IOException
     {
         validateNoDuplicateSongNames(driveSongs);
@@ -68,6 +69,7 @@ public class MbsProSongFileManager
         return mbsProDbUri;
     }
 
+    // TODO: rethink a lot of this stuff
     public void downloadNewDriveSongToDirectory(DriveSong driveSong, Uri directoryUri) throws IOException
     {
         Log.d(TAG, String.format("Downloading files for song %s", driveSong.mName));
@@ -93,14 +95,37 @@ public class MbsProSongFileManager
         mDrive.downloadFile(driveFile.getId(), mContext.getContentResolver().openOutputStream(newFile.getUri()));
     }
 
+    public void downloadNewDriveFileToMbsProSongDirectory(File driveFile, MbsProSong mbsProSong, Uri directoryUri)
+            throws IOException
+    {
+        downloadDriveFileToDirectory(safeGetMbsProSongDirectory(mbsProSong, directoryUri), driveFile);
+    }
+
     public void deleteMbsProSong(MbsProSong mbsProSong, Uri directoryUri)
+    {
+        safeGetMbsProSongDirectory(mbsProSong, directoryUri).delete();
+    }
+
+    public void deleteMbsProFile(DocumentFile mbsProFile)
+    {
+        ProdAssert.prodAssert(mbsProFile.delete(), "Deletion of file %s failed", mbsProFile.getName());
+    }
+
+    public void updateMbsProFile(File driveFile, DocumentFile mbsProFile) throws IOException
+    {
+        // Interestingly, deleting the DocumentFile and then calling the download method gives a "Failed query" error
+        // in the logs, likely related to https://stackoverflow.com/questions/35985321/check-that-a-documentfile-exists
+        mDrive.downloadFile(driveFile.getId(), mContext.getContentResolver().openOutputStream(mbsProFile.getUri()));
+    }
+
+    private DocumentFile safeGetMbsProSongDirectory(MbsProSong mbsProSong, Uri directoryUri)
     {
         DocumentFile songDirectory = DocumentFileUtils.safeDirectoryFromTreeUri(mContext, directoryUri)
                 .findFile(mbsProSong.mName);
         ProdAssert.notNull(songDirectory);
         ProdAssert.prodAssert(songDirectory.isDirectory(),
                 "DocumentFile for song name %s is not a directory", mbsProSong.mName);
-        songDirectory.delete();
+        return songDirectory;
     }
 
     private static void validateNoDuplicateSongNames(List<DriveSong> driveSongs)

@@ -75,6 +75,7 @@ public class SongSyncManager
         Sets.SetView<String> commonSongNames = Sets.intersection(driveSongNames, mbsProSongNames);
         for (String songName : commonSongNames)
         {
+            Log.d(TAG, String.format("Found common song %s", songName));
             DriveSong driveSong = MapUtils.safeGet(songNameToDriveSong, songName);
             MbsProSong mbsProSong = MapUtils.safeGet(songNameToMbsProSong, songName);
 
@@ -88,20 +89,29 @@ public class SongSyncManager
             Sets.SetView<String> extraDriveFilenames = Sets.difference(driveFilenames, mbsProFilenames);
             for (String extraDriveFilename : extraDriveFilenames)
             {
-                // download extra files from drive. to download, I need a fileId (which is on the driveFile), and a
-                // new file uri. or in filemanager, the  DocumentFile for the containing directory
+                Log.d(TAG, String.format("Found extra drive file %s, downloading", extraDriveFilename));
+                mMbsProSongFileManager.downloadNewDriveFileToMbsProSongDirectory(
+                        MapUtils.safeGet(driveFilenameToFile, extraDriveFilename), mbsProSong, mbsProDirectoryUri);
             }
 
             Sets.SetView<String> extraMbsProFilenames = Sets.difference(mbsProFilenames, driveFilenames);
             for (String extraMbsProFilename : extraMbsProFilenames)
             {
-                // delete these
+                Log.d(TAG, String.format("Found extra MBS Pro file %s, deleting", extraMbsProFilename));
+                mMbsProSongFileManager.deleteMbsProFile(MapUtils.safeGet(mbsProFilenameToFile, extraMbsProFilename));
             }
 
             Sets.SetView<String> commonFilenames = Sets.intersection(driveFilenames, mbsProFilenames);
             for (String commonFilename : commonFilenames)
             {
-                // compare drive/ mbsPro lastModified. If drive.lastModified > mbsPro.lastModified, redownload file
+                File driveFile = MapUtils.safeGet(driveFilenameToFile, commonFilename);
+                DocumentFile mbsProFile = MapUtils.safeGet(mbsProFilenameToFile, commonFilename);
+                if (driveFile.getModifiedTime().getValue() > mbsProFile.lastModified())
+                {
+                    Log.d(TAG, String.format("Found common file %s that needs to be updated, updating",
+                            commonFilename));
+                    mMbsProSongFileManager.updateMbsProFile(driveFile, mbsProFile);
+                }
             }
         }
 
