@@ -5,6 +5,10 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.app.Activity;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.job.JobInfo;
+import android.app.job.JobScheduler;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
@@ -13,8 +17,8 @@ import android.util.Log;
 
 import com.eriwang.mbspro_updater.R;
 import com.eriwang.mbspro_updater.drive.DriveWrapper;
+import com.eriwang.mbspro_updater.sync.SongSyncJobService;
 import com.eriwang.mbspro_updater.sync.SongSyncManager;
-import com.eriwang.mbspro_updater.sync.SongSyncService;
 import com.eriwang.mbspro_updater.utils.FunctionWrapper;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
@@ -37,6 +41,12 @@ public class MainActivity extends AppCompatActivity
     private static final int REQ_CODE_SIGN_IN = 1;
     private static final int REQ_CODE_FORCE_SYNC = 2;
     private static final int REQ_CODE_START_BG_SYNC = 3;
+
+    private static final int JOB_ID_BG_SYNC = 1;
+
+    // Note that Android clamps the interval to 15 minutes (possibly less on some versions of Android), and forces a
+    // post-job "flex" interval of 5 minutes.
+    private static final int BG_SYNC_INTERVAL_MILLIS = 5000;
 
     private static final String TEST_FOLDER_ROOT_ID = "11HTp4Y8liv9Oc0Sof0bxvlsGSLmQAvl4";
 
@@ -76,7 +86,8 @@ public class MainActivity extends AppCompatActivity
             startActivityForResult(intent, REQ_CODE_START_BG_SYNC);
         });
         findViewById(R.id.stop_sync).setOnClickListener(view -> {
-            Log.d(TAG, "Temporary noop");
+            JobScheduler jobScheduler = (JobScheduler) getSystemService(Context.JOB_SCHEDULER_SERVICE);
+            jobScheduler.cancel(JOB_ID_BG_SYNC);
         });
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
@@ -176,9 +187,12 @@ public class MainActivity extends AppCompatActivity
         final Uri saveLocationUri = result.getData();
         ProdAssert.notNull(saveLocationUri);
 
-        Intent intent = new Intent(this, SongSyncService.class)
-                .putExtra("saveLocationUri", saveLocationUri);
-        startService(intent);
+        JobScheduler jobScheduler = (JobScheduler) getSystemService(Context.JOB_SCHEDULER_SERVICE);
+        JobInfo jobInfo = new JobInfo.Builder(JOB_ID_BG_SYNC, new ComponentName(this, SongSyncJobService.class))
+                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED)
+                .setPeriodic(BG_SYNC_INTERVAL_MILLIS)
+                .build();
+        jobScheduler.schedule(jobInfo);
     }
 
     private <T> Task<T> taskExecute(Callable<T> c)
