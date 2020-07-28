@@ -1,40 +1,62 @@
 package com.eriwang.mbspro_updater.sync;
 
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.content.BroadcastReceiver;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
+import android.os.IBinder;
+import android.os.SystemClock;
 import android.util.Log;
-import android.widget.Toast;
 
-import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
+import com.eriwang.mbspro_updater.utils.ProdAssert;
 
-import com.eriwang.mbspro_updater.R;
-import com.eriwang.mbspro_updater.drive.DriveWrapper;
-
-import java.util.concurrent.Executor;
-
-public class SongSyncService extends BroadcastReceiver
+public class SongSyncService extends Service
 {
-    private static String CHANNEL_ID = "channel";
-    private static int notifCount = 0;
-    private Executor mExecutor;
-    private DriveWrapper mDrive;
-    private SongSyncManager mSongSyncManager;
+    private static final String TAG = "SongSyncService";
+    private static final int SYNC_START_WAIT_TIME = 1000;
+    private static final int SYNC_INTERVAL_MILLIS = 1000;
+    private static final int REQ_CODE_SONG_SYNC_JOB = 1;
 
     @Override
-    public void onReceive(Context context, Intent intent)
+    public void onCreate()
     {
-        Log.d("Receiver", "hello");
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, "channel")
-                .setSmallIcon(R.drawable.common_google_signin_btn_icon_dark)
-                .setContentTitle("Hello")
-                .setContentText("Hello")
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
-        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
-        notificationManager.notify(notifCount++, builder.build());
+        Log.d(TAG, "Service created");
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId)
+    {
+        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        ProdAssert.notNull(alarmManager);
+
+        Intent syncIntent = new Intent(this, SongSyncJob.class);
+//                .putExtra("saveLocationUri", saveLocationUri)
+//                .putExtra("driveDirectoryId", TEST_FOLDER_ROOT_ID);
+
+        PendingIntent currentPendingIntent = PendingIntent.getService(this, REQ_CODE_SONG_SYNC_JOB, syncIntent,
+                PendingIntent.FLAG_NO_CREATE);
+        if (currentPendingIntent != null)
+        {
+            alarmManager.cancel(currentPendingIntent);
+        }
+
+        PendingIntent alarmIntent = PendingIntent.getBroadcast(this, REQ_CODE_SONG_SYNC_JOB, syncIntent, 0);
+        alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME,
+                SystemClock.elapsedRealtime() + SYNC_START_WAIT_TIME, SYNC_INTERVAL_MILLIS, alarmIntent);
+
+        return Service.START_STICKY;
+    }
+
+    @Override
+    public void onDestroy()
+    {
+        Log.d(TAG, "Service destroyed.");
+    }
+
+    @Override
+    public IBinder onBind(Intent intent)
+    {
+        return null;
     }
 }

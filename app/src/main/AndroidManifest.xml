@@ -14,8 +14,16 @@
             android:supportsRtl="true"
             android:theme="@style/AppTheme">
 
-        <receiver android:name=".sync.SongSyncService" android:enabled="true">
-        </receiver>
+        <service
+                android:name=".sync.SongSyncService"
+                android:enabled="true"
+                android:exported="false"
+                android:process=":SongSyncServiceProcess"/>
+
+        <receiver
+                android:name=".sync.SongSyncJob"
+                android:enabled="true"
+                android:exported="false"/>
 
         <activity android:name=".view.MainActivity">
             <intent-filter>

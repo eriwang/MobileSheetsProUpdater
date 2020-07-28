@@ -3,11 +3,8 @@ package com.eriwang.mbspro_updater.view;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.Activity;
-import android.app.AlarmManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
@@ -40,8 +37,6 @@ public class MainActivity extends AppCompatActivity
     private static final int REQ_CODE_SIGN_IN = 1;
     private static final int REQ_CODE_FORCE_SYNC = 2;
     private static final int REQ_CODE_START_BG_SYNC = 3;
-    private static final int REQ_CODE_BG_SYNC_SERVICE = 4;
-
 
     private static final String TEST_FOLDER_ROOT_ID = "11HTp4Y8liv9Oc0Sof0bxvlsGSLmQAvl4";
 
@@ -80,6 +75,9 @@ public class MainActivity extends AppCompatActivity
             // TODO: specify initial URI?
             startActivityForResult(intent, REQ_CODE_START_BG_SYNC);
         });
+        findViewById(R.id.stop_sync).setOnClickListener(view -> {
+            Log.d(TAG, "Temporary noop");
+        });
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
         {
@@ -88,7 +86,6 @@ public class MainActivity extends AppCompatActivity
             NotificationManager notificationManager = getSystemService(NotificationManager.class);
             notificationManager.createNotificationChannel(channel);
         }
-
 
         // TODO: should be more user friendly in the future
         requestSignIn();
@@ -179,20 +176,9 @@ public class MainActivity extends AppCompatActivity
         final Uri saveLocationUri = result.getData();
         ProdAssert.notNull(saveLocationUri);
 
-        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-        ProdAssert.notNull(alarmManager);
-
         Intent intent = new Intent(this, SongSyncService.class)
-                .putExtra("saveLocationUri", saveLocationUri)
-                .putExtra("driveDirectoryId", TEST_FOLDER_ROOT_ID);
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(this, REQ_CODE_BG_SYNC_SERVICE, intent, 0);
-        if (pendingIntent != null)
-        {
-            alarmManager.cancel(pendingIntent);
-        }
-
-        // TODO: inexact
-        alarmManager.setRepeating(AlarmManager.ELAPSED_REALTIME, 1000, 1000, pendingIntent);
+                .putExtra("saveLocationUri", saveLocationUri);
+        startService(intent);
     }
 
     private <T> Task<T> taskExecute(Callable<T> c)

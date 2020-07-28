@@ -18,7 +18,13 @@
                 android:id="@+id/schedule_sync_in_background"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/sync_in_background"/>
+                android:text="@string/sync_in_background_btn_text"/>
+        <Button
+                android:id="@+id/stop_sync"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/stop_background_sync_btn_text"/>
+
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
