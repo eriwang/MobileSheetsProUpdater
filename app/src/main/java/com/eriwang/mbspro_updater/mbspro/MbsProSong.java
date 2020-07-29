@@ -1,5 +1,7 @@
 package com.eriwang.mbspro_updater.mbspro;
 
+import androidx.documentfile.provider.DocumentFile;
+
 import java.util.List;
 
 public class MbsProSong
@@ -7,39 +9,13 @@ public class MbsProSong
     public final String mName;
     // TODO: private final int mCreationDate;
 
-    public final List<MbsProSongPdf> mPdfs;
-    public final List<MbsProSongAudio> mAudioFiles;
+    public final List<DocumentFile> mPdfFiles;
+    public final List<DocumentFile> mAudioFiles;
 
-    public MbsProSong(String name, List<MbsProSongPdf> pdfs, List<MbsProSongAudio> audioFiles)
+    public MbsProSong(String name, List<DocumentFile> pdfs, List<DocumentFile> audioFiles)
     {
         mName = name;
-        mPdfs = pdfs;
+        mPdfFiles = pdfs;
         mAudioFiles = audioFiles;
-    }
-
-    public static class MbsProSongPdf
-    {
-        public final String mFilename;
-        public final int mNumPages;
-        public final long mLastModified;
-
-        public MbsProSongPdf(String filename, int numPages, long lastModified)
-        {
-            mFilename = filename;
-            mNumPages = numPages;
-            mLastModified = lastModified;
-        }
-    }
-
-    public static class MbsProSongAudio
-    {
-        public final String mFilename;
-        public final long mLastModified;
-
-        public MbsProSongAudio(String filename, long lastModified)
-        {
-            mFilename = filename;
-            mLastModified = lastModified;
-        }
     }
 }
