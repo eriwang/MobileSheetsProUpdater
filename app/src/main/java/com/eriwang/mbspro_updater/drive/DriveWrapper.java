@@ -1,14 +1,20 @@
 package com.eriwang.mbspro_updater.drive;
 
+import android.content.Context;
+
 import com.eriwang.mbspro_updater.utils.ProdAssert;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.api.client.extensions.android.http.AndroidHttp;
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.File;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.List;
 
 public class DriveWrapper
@@ -20,8 +26,14 @@ public class DriveWrapper
         mDrive = null;
     }
 
-    public void setCredentialAndInitialize(GoogleAccountCredential credential)
+    public void setCredentialFromContextAndInitialize(Context context)
     {
+        GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(context);
+        ProdAssert.notNull(account);
+        GoogleAccountCredential credential = GoogleAccountCredential
+                .usingOAuth2(context, Collections.singletonList(DriveScopes.DRIVE))
+                .setSelectedAccount(account.getAccount());
+
         mDrive = new Drive.Builder(AndroidHttp.newCompatibleTransport(), new GsonFactory(), credential)
                 .setApplicationName("MobileSheetsPro Updater").build();
     }

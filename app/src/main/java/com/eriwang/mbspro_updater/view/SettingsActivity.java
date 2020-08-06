@@ -25,7 +25,7 @@ public class SettingsActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.settings_activity);
+        setContentView(R.layout.activity_settings);
 
         getSupportFragmentManager()
                 .beginTransaction()
@@ -83,6 +83,8 @@ public class SettingsActivity extends AppCompatActivity
             Preference driveFolderIdPreference = safeFindPreference(DRIVE_FOLDER_ID_KEY);
             driveFolderIdPreference.setOnPreferenceClickListener(preference -> {
                 Log.d(TAG, "drive folder clicked");
+                Intent intent = new Intent(getContext(), DriveFolderSelectionActivity.class);
+                startActivityForResult(intent, REQ_CODE_DRIVE_FOLDER_SELECTED);
                 return false;
             });
             driveFolderIdPreference.setSummary(
@@ -99,6 +101,7 @@ public class SettingsActivity extends AppCompatActivity
                 break;
 
             case REQ_CODE_DRIVE_FOLDER_SELECTED:
+                handleDriveFolderSelected(resultCode, result);
                 break;
 
             default:
@@ -124,6 +127,15 @@ public class SettingsActivity extends AppCompatActivity
             editor.apply();
 
             safeFindPreference(MBSPRO_FOLDER_URI_KEY).setSummary(mbsproFolderUri);
+        }
+
+        private void handleDriveFolderSelected(int resultCode, Intent result)
+        {
+            // TODO: actual error handling
+            if (resultCode != Activity.RESULT_OK || result == null || result.getData() == null)
+            {
+                return;
+            }
         }
 
         private Preference safeFindPreference(String key)

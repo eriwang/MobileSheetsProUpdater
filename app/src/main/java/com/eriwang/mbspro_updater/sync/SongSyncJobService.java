@@ -6,14 +6,8 @@ import android.net.Uri;
 import android.util.Log;
 
 import com.eriwang.mbspro_updater.drive.DriveWrapper;
-import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.eriwang.mbspro_updater.utils.TaskUtils;
-import com.google.android.gms.auth.api.signin.GoogleSignIn;
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
-import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
-import com.google.api.services.drive.DriveScopes;
 
-import java.util.Collections;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -40,13 +34,8 @@ public class SongSyncJobService extends JobService
     @Override
     public boolean onStartJob(JobParameters jobParameters)
     {
-        GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
-        ProdAssert.notNull(account);  // TODO: better handling of auth with the job. Maybe notification and cancel job
-
-        GoogleAccountCredential credential = GoogleAccountCredential.usingOAuth2(
-                this, Collections.singletonList(DriveScopes.DRIVE))
-                .setSelectedAccount(account.getAccount());
-        mDrive.setCredentialAndInitialize(credential);
+        // TODO: better handling of auth with the job, this call throws. Maybe notification and cancel job
+        mDrive.setCredentialFromContextAndInitialize(this);
 
         String mbsProDataDir = jobParameters.getExtras().getString(MBS_PRO_DATA_DIR);
         String driveFolderId = jobParameters.getExtras().getString(DRIVE_FOLDER_ID);

@@ -3,5 +3,6 @@
     <string name="force_sync_now_btn_text">Force Sync Now</string>
     <string name="sync_in_background_btn_text">Sync in Background</string>
     <string name="stop_background_sync_btn_text">Stop Background Sync</string>
-    <string name="title_activity_settings">SettingsActivity</string>
+    <string name="title_activity_settings">Settings</string>
+    <string name="action_settings">Settings</string>
 </resources>
