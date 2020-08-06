@@ -65,6 +65,11 @@ public class MainActivity extends AppCompatActivity
             jobScheduler.cancel(SongSyncJobService.JOB_ID);
         });
 
+        findViewById(R.id.open_settings).setOnClickListener(view -> {
+            Intent intent = new Intent(this, SettingsActivity.class);
+            startActivity(intent);
+        });
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
         {
             NotificationChannel channel = new NotificationChannel("channel", "channel",
@@ -78,27 +83,27 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent resultData)
+    public void onActivityResult(int requestCode, int resultCode, Intent result)
     {
         switch (requestCode)
         {
         case REQ_CODE_SIGN_IN:
-            handleSignInResult(resultCode, resultData);
+            handleSignInResult(resultCode, result);
             break;
 
         case REQ_CODE_FORCE_SYNC:
-            handleForceSync(resultCode, resultData);
+            handleForceSync(resultCode, result);
             break;
 
         case REQ_CODE_START_BG_SYNC:
-            handleStartBackgroundSync(resultCode, resultData);
+            handleStartBackgroundSync(resultCode, result);
             break;
 
         default:
             throw new RuntimeException(String.format("Unknown request code %d", requestCode));
         }
 
-        super.onActivityResult(requestCode, resultCode, resultData);
+        super.onActivityResult(requestCode, resultCode, result);
     }
 
     private void requestSignIn()
