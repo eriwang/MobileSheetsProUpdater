@@ -14,6 +14,10 @@
             android:supportsRtl="true"
             android:theme="@style/AppTheme">
         <activity
+                android:name=".view.DriveFolderSelectionActivity"
+                android:label="@string/title_activity_drive_folder_selection"
+                android:theme="@style/AppTheme.NoActionBar"></activity>
+        <activity
                 android:name=".view.SettingsActivity"
                 android:label="@string/title_activity_settings" />
 
