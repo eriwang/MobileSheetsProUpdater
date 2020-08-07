@@ -34,7 +34,6 @@ public class SongSyncJobService extends JobService
     @Override
     public boolean onStartJob(JobParameters jobParameters)
     {
-        // TODO: better handling of auth with the job, this call throws. Maybe notification and cancel job
         mDrive.setCredentialFromContextAndInitialize(this);
 
         String mbsProDataDir = jobParameters.getExtras().getString(MBS_PRO_DATA_DIR);

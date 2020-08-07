@@ -26,6 +26,8 @@ public class DriveWrapper
         mDrive = null;
     }
 
+    // TODO: this call is unsafe, as it throws if we're not signed in. Better solution would be to return false if
+    //  authentication fails for any reason, and somewhere prompt the user to re-login.
     public void setCredentialFromContextAndInitialize(Context context)
     {
         GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(context);
