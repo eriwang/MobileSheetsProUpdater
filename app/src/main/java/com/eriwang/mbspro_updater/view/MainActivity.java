@@ -1,6 +1,7 @@
 package com.eriwang.mbspro_updater.view;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.preference.PreferenceManager;
 
 import android.app.Activity;
 import android.app.NotificationChannel;
@@ -10,7 +11,7 @@ import android.app.job.JobScheduler;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.net.Uri;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PersistableBundle;
@@ -33,19 +34,19 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity
 {
-    private static final String TAG = "Main";
+    private static final String TAG = "MainActivity";
     private static final int REQ_CODE_SIGN_IN = 1;
-    private static final int REQ_CODE_FORCE_SYNC = 2;
-    private static final int REQ_CODE_START_BG_SYNC = 3;
 
     // Note that Android clamps the interval to 15 minutes (possibly less on some versions of Android), and forces a
     // post-job "flex" interval of 5 minutes.
     private static final int BG_SYNC_INTERVAL_MILLIS = 5000;
 
-    private static final String TEST_FOLDER_ROOT_ID = "11HTp4Y8liv9Oc0Sof0bxvlsGSLmQAvl4";
-
     private Executor mExecutor;
 
+    // TODO: I should probably have fragments for a few different states (and manage them when they're resolved):
+    //  - Not signed in: Button for users to give permissions
+    //  - Signed in, folders (either one) not selected: Tell users to go to settings and fix it
+    //  - Signed in, folders selected: Regular view that allows syncing
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
@@ -54,15 +55,19 @@ public class MainActivity extends AppCompatActivity
 
         mExecutor = Executors.newSingleThreadExecutor();
 
-        findViewById(R.id.force_sync_now).setOnClickListener(view ->
-            startPickerActivityWithRequestCode(REQ_CODE_FORCE_SYNC));
+        // TODO: feedback of some sort, e.g. toasts
+        findViewById(R.id.force_sync_now).setOnClickListener(view -> startSyncJob(false));
 
-        findViewById(R.id.schedule_sync_in_background).setOnClickListener(view ->
-            startPickerActivityWithRequestCode(REQ_CODE_START_BG_SYNC));
+        findViewById(R.id.schedule_sync_in_background).setOnClickListener(view -> startSyncJob(true));
 
         findViewById(R.id.stop_sync).setOnClickListener(view -> {
             JobScheduler jobScheduler = (JobScheduler) getSystemService(Context.JOB_SCHEDULER_SERVICE);
             jobScheduler.cancel(SongSyncJobService.JOB_ID);
+        });
+
+        findViewById(R.id.open_settings).setOnClickListener(view -> {
+            Intent intent = new Intent(this, SettingsActivity.class);
+            startActivity(intent);
         });
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
@@ -78,27 +83,19 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent resultData)
+    public void onActivityResult(int requestCode, int resultCode, Intent result)
     {
         switch (requestCode)
         {
         case REQ_CODE_SIGN_IN:
-            handleSignInResult(resultCode, resultData);
-            break;
-
-        case REQ_CODE_FORCE_SYNC:
-            handleForceSync(resultCode, resultData);
-            break;
-
-        case REQ_CODE_START_BG_SYNC:
-            handleStartBackgroundSync(resultCode, resultData);
+            handleSignInResult(resultCode, result);
             break;
 
         default:
             throw new RuntimeException(String.format("Unknown request code %d", requestCode));
         }
 
-        super.onActivityResult(requestCode, resultCode, resultData);
+        super.onActivityResult(requestCode, resultCode, result);
     }
 
     private void requestSignIn()
@@ -113,19 +110,6 @@ public class MainActivity extends AppCompatActivity
         GoogleSignInClient client = GoogleSignIn.getClient(this, signInOptions);
 
         startActivityForResult(client.getSignInIntent(), REQ_CODE_SIGN_IN);
-    }
-
-    private void startPickerActivityWithRequestCode(int requestCode)
-    {
-        // TODO: rethink what's a user-friendly and more robust way to do this (e.g. what to save)
-        // TODO: maybe explicitly tell user what they should be selecting. also sanity check after that the db
-        //       is there
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                .addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-
-        // TODO: specify initial URI?
-        startActivityForResult(intent, requestCode);
     }
 
     private void handleSignInResult(int resultCode, Intent result)
@@ -148,35 +132,19 @@ public class MainActivity extends AppCompatActivity
                 .addOnFailureListener(exception -> Log.e(TAG, "Unable to sign in.", exception));
     }
 
-    private void handleForceSync(int resultCode, Intent result)
+    private void startSyncJob(boolean isPeriodic)
     {
-        // TODO: actual error handling
-        if (resultCode != Activity.RESULT_OK || result == null)
-        {
-            return;
-        }
-
-        startSyncJob(false, result.getData());
-    }
-
-    private void handleStartBackgroundSync(int resultCode, Intent result)
-    {
-        // TODO: actual error handling
-        if (resultCode != Activity.RESULT_OK || result == null)
-        {
-            return;
-        }
-
-        startSyncJob(true, result.getData());
-    }
-
-    private void startSyncJob(boolean isPeriodic, Uri mbsProDataDir)
-    {
+        // Something's wrong if the user has gotten far enough to start a sync job but the preferences aren't set.
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        String mbsProDataDir = sharedPreferences.getString(SettingsActivity.MBSPRO_FOLDER_URI_KEY, null);
         ProdAssert.notNull(mbsProDataDir);
 
+        String driveFolderId = sharedPreferences.getString(SettingsActivity.DRIVE_FOLDER_ID_KEY, null);
+        ProdAssert.notNull(driveFolderId);
+
         PersistableBundle persistableBundle = new PersistableBundle();
-        persistableBundle.putString(SongSyncJobService.MBS_PRO_DATA_DIR, mbsProDataDir.toString());
-        persistableBundle.putString(SongSyncJobService.DRIVE_FOLDER_ID, TEST_FOLDER_ROOT_ID);
+        persistableBundle.putString(SongSyncJobService.MBS_PRO_DATA_DIR, mbsProDataDir);
+        persistableBundle.putString(SongSyncJobService.DRIVE_FOLDER_ID, driveFolderId);
 
         JobScheduler jobScheduler = (JobScheduler) getSystemService(Context.JOB_SCHEDULER_SERVICE);
         JobInfo.Builder jobInfoBuilder = new JobInfo.Builder(SongSyncJobService.JOB_ID, new ComponentName(this, SongSyncJobService.class))

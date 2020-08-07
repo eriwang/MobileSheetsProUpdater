@@ -1,0 +1,20 @@
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+            app:title="Folder Selection">
+
+        <Preference
+                app:key="mbspro_folder_uri"
+                app:title="MobileSheets Pro Folder"/>
+
+        <Preference
+                app:key="drive_folder_path"
+                app:title="Google Drive Folder" />
+
+        <Preference
+                app:key="drive_folder_id"
+                app:isPreferenceVisible="false"/>
+
+    </PreferenceCategory>
+
+</PreferenceScreen>
