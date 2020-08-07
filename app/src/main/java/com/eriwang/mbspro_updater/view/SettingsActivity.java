@@ -1,6 +1,7 @@
 package com.eriwang.mbspro_updater.view;
 
 import android.app.Activity;
+import android.app.job.JobScheduler;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -17,10 +18,15 @@ import androidx.preference.PreferenceManager;
 
 import com.eriwang.mbspro_updater.R;
 import com.eriwang.mbspro_updater.mbspro.MbsProSongFileManager;
+import com.eriwang.mbspro_updater.sync.SongSyncJobService;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 
 public class SettingsActivity extends AppCompatActivity
 {
+    public static final String MBSPRO_FOLDER_URI_KEY = "mbspro_folder_uri";
+    public static final String DRIVE_FOLDER_PATH_KEY = "drive_folder_path";
+    public static final String DRIVE_FOLDER_ID_KEY = "drive_folder_id";
+
     private static String TAG = "SettingsActivity";
 
     @Override
@@ -57,10 +63,6 @@ public class SettingsActivity extends AppCompatActivity
         private static final int REQ_CODE_MBSPRO_FOLDER_SELECTED = 1;
         private static final int REQ_CODE_DRIVE_FOLDER_SELECTED = 2;
 
-        private static final String MBSPRO_FOLDER_URI_KEY = "mbspro_folder_uri";
-        private static final String DRIVE_FOLDER_PATH_KEY = "drive_folder_path";
-        private static final String DRIVE_FOLDER_ID_KEY = "drive_folder_id";
-
         @Override
         public void onCreatePreferences(Bundle savedInstanceState, String rootKey)
         {
@@ -76,7 +78,6 @@ public class SettingsActivity extends AppCompatActivity
                 // TODO: best if there's a dialog that pops up first that says where it probably is
                 // TODO: is there a cancel button?
                 startActivityForResult(intent, REQ_CODE_MBSPRO_FOLDER_SELECTED);
-                Log.d(TAG, "activity called");
                 return false;
             });
             mbsProFolderUriPreference.setSummary(
@@ -121,7 +122,8 @@ public class SettingsActivity extends AppCompatActivity
                 return;
             }
 
-            // Ideally, maybe songFileManager doesn't need to know about Drive at all.
+            // This is a smell that shows songFileManager might not need to know about Drive at all. That said, this
+            // still functions as intended even if we toss in null for Drive.
             MbsProSongFileManager mbsProSongFileManager = new MbsProSongFileManager(null, getContext());
             mbsProSongFileManager.setDirectoryUri(result.getData());
             if (mbsProSongFileManager.findMobileSheetsDbFile() == null)
@@ -132,13 +134,13 @@ public class SettingsActivity extends AppCompatActivity
                 return;
             }
 
-
             String mbsproFolderUri = result.getData().toString();
             SharedPreferences.Editor editor = getDefaultSharedPreferences().edit();
             editor.putString(MBSPRO_FOLDER_URI_KEY, mbsproFolderUri);
             editor.apply();
 
             safeFindPreference(MBSPRO_FOLDER_URI_KEY).setSummary(mbsproFolderUri);
+            clearJobsAfterSettingChange();
         }
 
         private void handleDriveFolderSelected(int resultCode, Intent result)
@@ -159,6 +161,15 @@ public class SettingsActivity extends AppCompatActivity
             editor.apply();
 
             safeFindPreference(DRIVE_FOLDER_PATH_KEY).setSummary(driveFolderPath);
+            clearJobsAfterSettingChange();
+        }
+
+        private void clearJobsAfterSettingChange()
+        {
+            JobScheduler jobScheduler = (JobScheduler) getContext().getSystemService(Context.JOB_SCHEDULER_SERVICE);
+            jobScheduler.cancel(SongSyncJobService.JOB_ID);
+            Toast.makeText(getContext(), "Setting changed, cancelling any scheduled sync jobs.", Toast.LENGTH_SHORT)
+                    .show();
         }
 
         private Preference safeFindPreference(String key)
