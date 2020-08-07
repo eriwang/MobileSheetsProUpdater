@@ -1,12 +1,15 @@
 package com.eriwang.mbspro_updater.view;
 
+import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.ActivityChooserView;
 import androidx.appcompat.widget.Toolbar;
 
 import android.util.Log;
@@ -18,6 +21,7 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.eriwang.mbspro_updater.R;
 import com.eriwang.mbspro_updater.drive.DriveUtils;
@@ -36,6 +40,9 @@ import java.util.concurrent.Executors;
 // optimal solution, but should get the job done.
 public class DriveFolderSelectionActivity extends AppCompatActivity
 {
+    public static final String DRIVE_FOLDER_PATH_INTENT_EXTRA = "driveFolderPath";
+    public static final String DRIVE_FOLDER_ID_INTENT_EXTRA = "driveFolderId";
+
     private static final String TAG = "DriveFolderSelection";
 
     private DriveWrapper mDrive;
@@ -45,12 +52,8 @@ public class DriveFolderSelectionActivity extends AppCompatActivity
     private DriveFolderViewAdapter mDriveFolderViewAdapter;
     private boolean mCurrentlySwitchingFolder;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState)
+    private void initMembers()
     {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_drive_folder_selection);
-
         mDrive = new DriveWrapper();
         mDrive.setCredentialFromContextAndInitialize(this);
         mExecutor = Executors.newSingleThreadExecutor();
@@ -58,9 +61,17 @@ public class DriveFolderSelectionActivity extends AppCompatActivity
         mDriveFolders = new ArrayList<>();
         mDriveFolderViewAdapter = new DriveFolderViewAdapter(this, mDriveFolders);
         mCurrentlySwitchingFolder = false;
+    }
 
-        Toolbar toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
+    @Override
+    protected void onCreate(Bundle savedInstanceState)
+    {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_drive_folder_selection);
+
+        initMembers();
+
+        setSupportActionBar(findViewById(R.id.toolbar));
         ActionBar actionBar = getSupportActionBar();
         if (actionBar != null)
         {
@@ -113,7 +124,7 @@ public class DriveFolderSelectionActivity extends AppCompatActivity
             return true;
 
         case R.id.drive_folder_selection_select_folder:
-            // TODO
+            handleDriveFolderSelected();
             return true;
 
         default:
@@ -122,7 +133,6 @@ public class DriveFolderSelectionActivity extends AppCompatActivity
         }
     }
 
-    // TODO: better error handling, including releasing the mCurrentlySwitchFolder "lock"
     private void switchToParentOrChildFolder(DriveFolder driveFolder)
     {
         mCurrentlySwitchingFolder = true;
@@ -155,6 +165,23 @@ public class DriveFolderSelectionActivity extends AppCompatActivity
             })
             // TODO: better error handling
             .addOnFailureListener(exception -> Log.e(TAG, "ListDirectory on Drive failed.", exception));
+    }
+
+    private void handleDriveFolderSelected()
+    {
+        DriveFolder driveFolder = mCurrentTreeDriveFolders.get(mCurrentTreeDriveFolders.size() - 1);
+        if (driveFolder == DriveFolder.ROOT)
+        {
+            Toast.makeText(this, "Using root as Drive Folder is currently unsupported.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Intent intent = new Intent()
+                .putExtra(DRIVE_FOLDER_PATH_INTENT_EXTRA, getCurrentDrivePathText())
+                .putExtra(DRIVE_FOLDER_ID_INTENT_EXTRA, driveFolder.mId);
+
+        setResult(Activity.RESULT_OK, intent);
+        finish();
     }
 
     private String getCurrentDrivePathText()

@@ -8,8 +8,12 @@
                 app:title="MobileSheets Pro Folder"/>
 
         <Preference
+                app:key="drive_folder_path"
+                app:title="Google Drive Folder" />
+
+        <Preference
                 app:key="drive_folder_id"
-                app:title="Google Drive Folder"/>
+                app:isPreferenceVisible="false"/>
 
     </PreferenceCategory>
 

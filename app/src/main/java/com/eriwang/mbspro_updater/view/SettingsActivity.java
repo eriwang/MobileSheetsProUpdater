@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MenuItem;
+import android.widget.Toast;
 
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
@@ -15,6 +16,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 
 import com.eriwang.mbspro_updater.R;
+import com.eriwang.mbspro_updater.mbspro.MbsProSongFileManager;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 
 public class SettingsActivity extends AppCompatActivity
@@ -56,6 +58,7 @@ public class SettingsActivity extends AppCompatActivity
         private static final int REQ_CODE_DRIVE_FOLDER_SELECTED = 2;
 
         private static final String MBSPRO_FOLDER_URI_KEY = "mbspro_folder_uri";
+        private static final String DRIVE_FOLDER_PATH_KEY = "drive_folder_path";
         private static final String DRIVE_FOLDER_ID_KEY = "drive_folder_id";
 
         @Override
@@ -72,7 +75,6 @@ public class SettingsActivity extends AppCompatActivity
 
                 // TODO: best if there's a dialog that pops up first that says where it probably is
                 // TODO: is there a cancel button?
-                // TODO: specify initial URI?
                 startActivityForResult(intent, REQ_CODE_MBSPRO_FOLDER_SELECTED);
                 Log.d(TAG, "activity called");
                 return false;
@@ -80,15 +82,15 @@ public class SettingsActivity extends AppCompatActivity
             mbsProFolderUriPreference.setSummary(
                     getDefaultSharedPreferences().getString(MBSPRO_FOLDER_URI_KEY, "None set"));
 
-            Preference driveFolderIdPreference = safeFindPreference(DRIVE_FOLDER_ID_KEY);
-            driveFolderIdPreference.setOnPreferenceClickListener(preference -> {
+            Preference driveFolderPathPreference = safeFindPreference(DRIVE_FOLDER_PATH_KEY);
+            driveFolderPathPreference.setOnPreferenceClickListener(preference -> {
                 Log.d(TAG, "drive folder clicked");
                 Intent intent = new Intent(getContext(), DriveFolderSelectionActivity.class);
                 startActivityForResult(intent, REQ_CODE_DRIVE_FOLDER_SELECTED);
                 return false;
             });
-            driveFolderIdPreference.setSummary(
-                    getDefaultSharedPreferences().getString(DRIVE_FOLDER_ID_KEY, "None set"));
+            driveFolderPathPreference.setSummary(
+                    getDefaultSharedPreferences().getString(DRIVE_FOLDER_PATH_KEY, "None set"));
         }
 
         @Override
@@ -119,7 +121,17 @@ public class SettingsActivity extends AppCompatActivity
                 return;
             }
 
-            // TODO: validate has mobilesheets.db
+            // Ideally, maybe songFileManager doesn't need to know about Drive at all.
+            MbsProSongFileManager mbsProSongFileManager = new MbsProSongFileManager(null, getContext());
+            mbsProSongFileManager.setDirectoryUri(result.getData());
+            if (mbsProSongFileManager.findMobileSheetsDbFile() == null)
+            {
+                Toast.makeText(getContext(),
+                        "Did not find a mobilesheets.db file in the selected directory, make sure the correct " +
+                                "directory was selected.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
 
             String mbsproFolderUri = result.getData().toString();
             SharedPreferences.Editor editor = getDefaultSharedPreferences().edit();
@@ -131,11 +143,22 @@ public class SettingsActivity extends AppCompatActivity
 
         private void handleDriveFolderSelected(int resultCode, Intent result)
         {
-            // TODO: actual error handling
-            if (resultCode != Activity.RESULT_OK || result == null || result.getData() == null)
+            Bundle resultExtras = result.getExtras();
+            if (resultCode != Activity.RESULT_OK || resultExtras == null)
             {
+                Log.d(TAG, String.format("Not changing prefs: resultCode=%d", resultCode));
                 return;
             }
+
+            String driveFolderPath =
+                    resultExtras.getString(DriveFolderSelectionActivity.DRIVE_FOLDER_PATH_INTENT_EXTRA);
+            String driveFolderId = resultExtras.getString(DriveFolderSelectionActivity.DRIVE_FOLDER_ID_INTENT_EXTRA);
+            SharedPreferences.Editor editor = getDefaultSharedPreferences().edit();
+            editor.putString(DRIVE_FOLDER_PATH_KEY, driveFolderPath);
+            editor.putString(DRIVE_FOLDER_ID_KEY, driveFolderId);
+            editor.apply();
+
+            safeFindPreference(DRIVE_FOLDER_PATH_KEY).setSummary(driveFolderPath);
         }
 
         private Preference safeFindPreference(String key)
