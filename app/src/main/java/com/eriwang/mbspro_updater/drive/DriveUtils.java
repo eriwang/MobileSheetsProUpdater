@@ -2,7 +2,7 @@ package com.eriwang.mbspro_updater.drive;
 
 import com.google.api.services.drive.model.File;
 
-class DriveUtils
+public class DriveUtils
 {
     public static boolean isFolder(File file)
     {

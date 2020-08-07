@@ -20,10 +20,13 @@ import android.widget.ListView;
 import android.widget.TextView;
 
 import com.eriwang.mbspro_updater.R;
+import com.eriwang.mbspro_updater.drive.DriveUtils;
 import com.eriwang.mbspro_updater.drive.DriveWrapper;
 import com.eriwang.mbspro_updater.utils.TaskUtils;
+import com.google.api.services.drive.model.File;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -37,11 +40,10 @@ public class DriveFolderSelectionActivity extends AppCompatActivity
 
     private DriveWrapper mDrive;
     private Executor mExecutor;
-    private DriveFolder mCurrentDriveFolder;
-    private TextView mCurrentDriveFolderTextView;
-
+    private ArrayList<DriveFolder> mCurrentTreeDriveFolders;
     private ArrayList<DriveFolder> mDriveFolders;
     private DriveFolderViewAdapter mDriveFolderViewAdapter;
+    private boolean mCurrentlySwitchingFolder;
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -52,36 +54,46 @@ public class DriveFolderSelectionActivity extends AppCompatActivity
         mDrive = new DriveWrapper();
         mDrive.setCredentialFromContextAndInitialize(this);
         mExecutor = Executors.newSingleThreadExecutor();
-        mCurrentDriveFolder = DriveFolder.ROOT;
-        mCurrentDriveFolderTextView = findViewById(R.id.current_drive_folder_text_view);
+        mCurrentTreeDriveFolders = new ArrayList<>(Collections.singletonList(DriveFolder.ROOT));
         mDriveFolders = new ArrayList<>();
         mDriveFolderViewAdapter = new DriveFolderViewAdapter(this, mDriveFolders);
+        mCurrentlySwitchingFolder = false;
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
         ActionBar actionBar = getSupportActionBar();
         if (actionBar != null)
         {
             actionBar.setDisplayHomeAsUpEnabled(true);
         }
 
-        setCurrentDriveFolder(mCurrentDriveFolder);
-
-        TaskUtils.execute(mExecutor, () -> mDrive.listDirectory("root"))
-            .addOnSuccessListener(directoryItems -> {
-                Log.d(TAG, String.format("ListDir complete, found %d items", directoryItems.size()));
-                mDriveFolders.add(DriveFolder.UP_ONE_LEVEL);
-                mDriveFolderViewAdapter.notifyDataSetChanged();
-            });
-
         ListView listView = findViewById(R.id.drive_folders_list_view);
-
         listView.setAdapter(mDriveFolderViewAdapter);
         listView.setOnItemClickListener((parent, view, position, id) -> {
+            if (mCurrentlySwitchingFolder)
+            {
+                return;
+            }
+
             DriveFolder driveFolder = (DriveFolder) listView.getItemAtPosition(position);
             Log.d(TAG, String.format("Clicked %s:%s", driveFolder.mName, driveFolder.mId));
+
+            DriveFolder targetDriveFolder;
+            if (driveFolder == DriveFolder.UP_ONE_LEVEL)
+            {
+                mCurrentTreeDriveFolders.remove(mCurrentTreeDriveFolders.size() - 1);
+                targetDriveFolder = mCurrentTreeDriveFolders.get(mCurrentTreeDriveFolders.size() - 1);
+            }
+            else
+            {
+                mCurrentTreeDriveFolders.add(driveFolder);
+                targetDriveFolder = driveFolder;
+            }
+
+            switchToParentOrChildFolder(targetDriveFolder);
         });
+
+        switchToParentOrChildFolder(DriveFolder.ROOT);
     }
 
     @Override
@@ -94,31 +106,72 @@ public class DriveFolderSelectionActivity extends AppCompatActivity
     @Override
     public boolean onOptionsItemSelected(MenuItem item)
     {
-        if (item.getItemId() == android.R.id.home)
+        switch (item.getItemId())
         {
+        case android.R.id.home:
             super.onBackPressed();
             return true;
+
+        case R.id.drive_folder_selection_select_folder:
+            // TODO
+            return true;
+
+        default:
+            throw new RuntimeException(
+                    String.format("Unhandled item id=%d, title=%s", item.getItemId(), item.getTitle()));
         }
-
-        return super.onOptionsItemSelected(item);
     }
 
-    private void setCurrentDriveFolder(DriveFolder driveFolder)
+    // TODO: better error handling, including releasing the mCurrentlySwitchFolder "lock"
+    private void switchToParentOrChildFolder(DriveFolder driveFolder)
     {
-        mCurrentDriveFolder = driveFolder;
-        mCurrentDriveFolderTextView.setText((driveFolder == null) ? "/ (Root)" : driveFolder.mName);
+        mCurrentlySwitchingFolder = true;
+
+        TextView currentDrivePathTextView = findViewById(R.id.current_drive_folder_text_view);
+        String drivePathText = getCurrentDrivePathText();
+        currentDrivePathTextView.setText(String.format("%s (Loading...)", drivePathText));
+
+        TaskUtils.execute(mExecutor, () -> mDrive.listDirectory(driveFolder.mId))
+            .addOnSuccessListener(directoryItems -> {
+                Log.d(TAG, String.format("ListDir complete, found %d items", directoryItems.size()));
+
+                currentDrivePathTextView.setText(drivePathText);
+
+                mDriveFolders.clear();
+                if (driveFolder != DriveFolder.ROOT)
+                {
+                    mDriveFolders.add(DriveFolder.UP_ONE_LEVEL);
+                }
+                for (File item : directoryItems)
+                {
+                    if (DriveUtils.isFolder(item))
+                    {
+                        mDriveFolders.add(new DriveFolder(item.getName(), item.getId()));
+                    }
+                }
+                mDriveFolderViewAdapter.notifyDataSetChanged();
+
+                mCurrentlySwitchingFolder = false;
+            })
+            // TODO: better error handling
+            .addOnFailureListener(exception -> Log.e(TAG, "ListDirectory on Drive failed.", exception));
     }
 
-    private void populateDriveFolderViewWithFolderContents(DriveFolder driveFolder)
+    private String getCurrentDrivePathText()
     {
-
+        StringBuilder fullPath = new StringBuilder();
+        for (DriveFolder driveFolder : mCurrentTreeDriveFolders)
+        {
+            fullPath.append('/');
+            fullPath.append(driveFolder.mName);
+        }
+        return fullPath.toString();
     }
 }
 
-// TODO: I want to display the full path of the Drive Folder
 class DriveFolder
 {
-    public static DriveFolder ROOT = new DriveFolder("(Root)", null);
+    public static DriveFolder ROOT = new DriveFolder("(Root)", "root");
     public static DriveFolder UP_ONE_LEVEL = new DriveFolder("(Go up one level)", null);
 
     public String mName;
