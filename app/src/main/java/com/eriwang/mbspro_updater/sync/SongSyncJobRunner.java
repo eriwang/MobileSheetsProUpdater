@@ -38,12 +38,15 @@ public class SongSyncJobRunner
         mDriveSongFinder = new DriveSongFinder(drive);
         mMbsProSongFinder = new MbsProSongFinder(context);
         mMbsProSongFileManager = new MbsProSongFileManager(drive, context);
-        mMbsProDatabaseManager = new MbsProDatabaseManager(context.getContentResolver());
+        mMbsProDatabaseManager = new MbsProDatabaseManager(context.getContentResolver(), logger);
         mLogger = logger;
     }
 
     // TODO: after a device restart, I ran into a permission error with DocumentFile. I'm not sure how long the
     //       open document tree permission is good for.
+    // TODO: I've gotten a Drive file download error due to socket timeout at least once. In those cases manual
+    //       intervention might be necessary (made easier because I've got the error logging), but maybe could detect
+    //       corrupt files? Not sure on that one
     public void syncMbsProWithDrive(String driveDirectoryId, Uri mbsProDirectoryUri) throws IOException
     {
         mMbsProSongFileManager.setDirectoryUri(mbsProDirectoryUri);

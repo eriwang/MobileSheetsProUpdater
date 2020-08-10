@@ -55,6 +55,7 @@ public class SongSyncJobService extends JobService
             .addOnFailureListener(exception -> {
 
                 mLogger.logException(exception, "Job failed.");
+                mLogger.flushLogsToAppFile(this);
 
                 // TODO: on click open app and show view with error
                 NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "channel")
