@@ -64,11 +64,9 @@ public class MainActivity extends AppCompatActivity
             List<String> lastJobLogLines = SongSyncJobServiceLogger.readAppFileLog(this);
             for (String logLine : lastJobLogLines)
             {
-                Log.d(TAG, logLine);
                 fullLogText.append(logLine);
                 fullLogText.append('\n');
             }
-
             ((TextView) findViewById(R.id.update_log_view)).setText(fullLogText);
         });
 

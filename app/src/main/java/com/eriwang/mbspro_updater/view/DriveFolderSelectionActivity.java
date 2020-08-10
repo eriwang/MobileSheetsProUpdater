@@ -213,7 +213,7 @@ class DriveFolderViewAdapter extends ArrayAdapter<DriveFolder>
 {
     public DriveFolderViewAdapter(Context context, List<DriveFolder> values)
     {
-        super(context, R.layout.drive_folder_selection_folder, R.id.drive_folder_name, values);
+        super(context, R.layout.view_drive_folder_selection_folder, R.id.drive_folder_name, values);
     }
 
     @NonNull
@@ -223,7 +223,7 @@ class DriveFolderViewAdapter extends ArrayAdapter<DriveFolder>
         DriveFolder driveFolder = getItem(position);
         if (convertView == null)
         {
-            convertView = LayoutInflater.from(getContext()).inflate(R.layout.drive_folder_selection_folder, parent,
+            convertView = LayoutInflater.from(getContext()).inflate(R.layout.view_drive_folder_selection_folder, parent,
                     false);
         }
 
