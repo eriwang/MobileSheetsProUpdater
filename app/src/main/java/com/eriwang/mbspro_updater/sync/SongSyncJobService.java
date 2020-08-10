@@ -21,7 +21,6 @@ public class SongSyncJobService extends JobService
     public static final String MBS_PRO_DATA_DIR = "MBS_PRO_DATA_DIR";
     public static final String DRIVE_FOLDER_ID = "DRIVE_FOLDER_ID";
 
-
     // TODO: clean up notifications, one builder class per channel that just manages everything
     private static int notifId = 0;
 

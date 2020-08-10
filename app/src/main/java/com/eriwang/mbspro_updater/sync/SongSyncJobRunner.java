@@ -2,7 +2,6 @@ package com.eriwang.mbspro_updater.sync;
 
 import android.content.Context;
 import android.net.Uri;
-import android.util.Log;
 
 import androidx.documentfile.provider.DocumentFile;
 

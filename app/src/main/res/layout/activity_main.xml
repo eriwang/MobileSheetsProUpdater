@@ -11,23 +11,34 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
-        <Button
+        <!-- TODO: styles for these? or another view entirely? -->
+
+        <TextView
                 android:id="@+id/force_sync_now"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/force_sync_now_btn_text"/>
+                android:padding="16dp"
+                android:text="@string/btn_force_sync_now"
+                android:textColor="@android:color/primary_text_light"
+                android:background="?android:attr/selectableItemBackground"/>
+
+        <Switch
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="16dp"
+                android:text="@string/switch_toggle_background_sync"/>
 
         <Button
                 android:id="@+id/schedule_sync_in_background"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/sync_in_background_btn_text"/>
+                android:text="@string/btn_sync_in_background"/>
 
         <Button
                 android:id="@+id/stop_sync"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/stop_background_sync_btn_text"/>
+                android:text="@string/btn_stop_background_sync"/>
 
         <Button
                 android:id="@+id/open_settings"
@@ -35,6 +46,25 @@
                 android:layout_height="wrap_content"
                 android:text="Open Settings"/>
 
+        <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/header_most_recent_job_output"
+                android:textStyle="bold"
+                android:textColor="@android:color/primary_text_light"
+                android:layout_marginBottom="16dp"/>
+
+        <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+            <TextView
+                    android:id="@+id/update_log_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:typeface="monospace"/>
+
+        </ScrollView>
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

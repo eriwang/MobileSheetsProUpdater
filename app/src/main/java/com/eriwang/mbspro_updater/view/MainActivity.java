@@ -15,7 +15,9 @@ import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PersistableBundle;
+import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
+import android.widget.TextView;
 
 import com.eriwang.mbspro_updater.R;
 import com.eriwang.mbspro_updater.sync.SongSyncJobService;
@@ -58,11 +60,16 @@ public class MainActivity extends AppCompatActivity
         mExecutor = Executors.newSingleThreadExecutor();
 
         TaskUtils.execute(mExecutor, () -> {
+            StringBuilder fullLogText = new StringBuilder();
             List<String> lastJobLogLines = SongSyncJobServiceLogger.readAppFileLog(this);
             for (String logLine : lastJobLogLines)
             {
                 Log.d(TAG, logLine);
+                fullLogText.append(logLine);
+                fullLogText.append('\n');
             }
+
+            ((TextView) findViewById(R.id.update_log_view)).setText(fullLogText);
         });
 
         // TODO: feedback of some sort, e.g. toasts

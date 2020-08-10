@@ -29,7 +29,7 @@ public class SongSyncJobServiceLogger
 
     public SongSyncJobServiceLogger()
     {
-        mDateFormat = new SimpleDateFormat("yyyyMMdd HH:mm:dd.SSS", Locale.US);
+        mDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:dd.SSS", Locale.US);
         mLogLines = new ArrayList<>();
     }
 

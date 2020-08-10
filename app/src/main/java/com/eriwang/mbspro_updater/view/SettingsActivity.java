@@ -145,6 +145,11 @@ public class SettingsActivity extends AppCompatActivity
 
         private void handleDriveFolderSelected(int resultCode, Intent result)
         {
+            if (result == null)
+            {
+                return;
+            }
+
             Bundle resultExtras = result.getExtras();
             if (resultCode != Activity.RESULT_OK || resultExtras == null)
             {

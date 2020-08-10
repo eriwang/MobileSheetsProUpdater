@@ -30,8 +30,8 @@
                 android:id="@+id/current_drive_folder_text_view"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="15sp"
-                android:layout_margin="15dp" />
+                android:textSize="14sp"
+                android:layout_margin="16dp" />
 
         <View style="@style/Divider"/>
 
