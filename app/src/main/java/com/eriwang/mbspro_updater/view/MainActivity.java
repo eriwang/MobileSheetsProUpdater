@@ -15,15 +15,17 @@ import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PersistableBundle;
-import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
+import android.widget.Switch;
 import android.widget.TextView;
 
 import com.eriwang.mbspro_updater.R;
 import com.eriwang.mbspro_updater.sync.SongSyncJobService;
 import com.eriwang.mbspro_updater.sync.SongSyncJobServiceLogger;
+import com.eriwang.mbspro_updater.utils.JobSchedulerUtils;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.eriwang.mbspro_updater.utils.TaskUtils;
+import com.eriwang.mbspro_updater.utils.ToastUtils;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
@@ -70,14 +72,27 @@ public class MainActivity extends AppCompatActivity
             ((TextView) findViewById(R.id.update_log_view)).setText(fullLogText);
         });
 
-        // TODO: feedback of some sort, e.g. toasts
-        findViewById(R.id.force_sync_now).setOnClickListener(view -> startSyncJob(false));
+        findViewById(R.id.force_sync_now).setOnClickListener(view -> {
+            ToastUtils.showShortToast(this, "Starting sync job now.");
+            startSyncJob(false);
+        });
 
-        findViewById(R.id.schedule_sync_in_background).setOnClickListener(view -> startSyncJob(true));
-
-        findViewById(R.id.stop_sync).setOnClickListener(view -> {
-            JobScheduler jobScheduler = (JobScheduler) getSystemService(Context.JOB_SCHEDULER_SERVICE);
-            jobScheduler.cancel(SongSyncJobService.PERIODIC_JOB_ID);
+        // Note that this will not change if the app is already open, the sync job fails, and the job gets cancelled.
+        // That said,
+        Switch toggleSyncSwitch = findViewById(R.id.toggle_sync);
+        toggleSyncSwitch.setChecked(JobSchedulerUtils.isJobScheduled(this, SongSyncJobService.PERIODIC_JOB_ID));
+        toggleSyncSwitch.setOnCheckedChangeListener((compoundButton, isChecked) -> {
+            if (isChecked)
+            {
+                ToastUtils.showShortToast(this, "Starting sync job to run in background. Will start in 15 minutes.");
+                startSyncJob(true);
+            }
+            else
+            {
+                ToastUtils.showShortToast(this, "Cancelled sync job.");
+                ((JobScheduler) getSystemService(Context.JOB_SCHEDULER_SERVICE))
+                        .cancel(SongSyncJobService.PERIODIC_JOB_ID);
+            }
         });
 
         findViewById(R.id.open_settings).setOnClickListener(view -> {
@@ -95,6 +110,15 @@ public class MainActivity extends AppCompatActivity
 
         // TODO: should be more user friendly in the future
         requestSignIn();
+    }
+
+    @Override
+    protected void onResume()
+    {
+        ((Switch) findViewById(R.id.toggle_sync))
+                .setChecked(JobSchedulerUtils.isJobScheduled(this, SongSyncJobService.PERIODIC_JOB_ID));
+
+        super.onResume();
     }
 
     @Override
