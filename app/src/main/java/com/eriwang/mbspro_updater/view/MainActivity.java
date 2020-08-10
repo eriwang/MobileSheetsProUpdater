@@ -19,9 +19,9 @@ import android.util.Log;
 
 import com.eriwang.mbspro_updater.R;
 import com.eriwang.mbspro_updater.sync.SongSyncJobService;
+import com.eriwang.mbspro_updater.sync.SongSyncJobServiceLogger;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.eriwang.mbspro_updater.utils.TaskUtils;
-import com.eriwang.mbspro_updater.utils.ToastUtils;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
@@ -30,6 +30,7 @@ import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccoun
 import com.google.api.services.drive.DriveScopes;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -55,6 +56,14 @@ public class MainActivity extends AppCompatActivity
         setContentView(R.layout.activity_main);
 
         mExecutor = Executors.newSingleThreadExecutor();
+
+        TaskUtils.execute(mExecutor, () -> {
+            List<String> lastJobLogLines = SongSyncJobServiceLogger.readAppFileLog(this);
+            for (String logLine : lastJobLogLines)
+            {
+                Log.d(TAG, logLine);
+            }
+        });
 
         // TODO: feedback of some sort, e.g. toasts
         findViewById(R.id.force_sync_now).setOnClickListener(view -> startSyncJob(false));

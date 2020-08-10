@@ -26,21 +26,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class SongSyncManager
+public class SongSyncJobRunner
 {
-    private static final String TAG = "SongSyncManager";
-
     private final DriveSongFinder mDriveSongFinder;
     private final MbsProSongFinder mMbsProSongFinder;
     private final MbsProSongFileManager mMbsProSongFileManager;
     private final MbsProDatabaseManager mMbsProDatabaseManager;
+    private final SongSyncJobServiceLogger mLogger;
 
-    public SongSyncManager(DriveWrapper drive, Context context)
+    public SongSyncJobRunner(DriveWrapper drive, Context context, SongSyncJobServiceLogger logger)
     {
         mDriveSongFinder = new DriveSongFinder(drive);
         mMbsProSongFinder = new MbsProSongFinder(context);
         mMbsProSongFileManager = new MbsProSongFileManager(drive, context);
         mMbsProDatabaseManager = new MbsProDatabaseManager(context.getContentResolver());
+        mLogger = logger;
     }
 
     // TODO: after a device restart, I ran into a permission error with DocumentFile. I'm not sure how long the
@@ -57,29 +57,29 @@ public class SongSyncManager
         Set<String> driveSongNames = songNameToDriveSong.keySet();
         Set<String> mbsProSongNames = songNameToMbsProSong.keySet();
 
-        Log.d(TAG, "Syncing extra drive songs");
+        mLogger.log("Syncing extra drive songs");
         Sets.SetView<String> extraDriveSongNames = Sets.difference(driveSongNames, mbsProSongNames);
         for (String extraDriveSongName : extraDriveSongNames)
         {
-            Log.d(TAG, String.format("Found extra drive song %s, downloading", extraDriveSongName));
+            mLogger.log("Found extra drive song %s, downloading", extraDriveSongName);
             DriveSong driveSong = MapUtils.safeGet(songNameToDriveSong, extraDriveSongName);
             mMbsProSongFileManager.downloadNewDriveSongToDirectory(driveSong);
         }
 
-        Log.d(TAG, "Syncing extra MBS Pro songs");
+        mLogger.log("Syncing extra MBS Pro songs");
         Sets.SetView<String> extraMbsProSongNames = Sets.difference(mbsProSongNames, driveSongNames);
         for (String extraMbsProSongName : extraMbsProSongNames)
         {
-            Log.d(TAG, String.format("Found extra MBS Pro song %s, deleting", extraMbsProSongName));
+            mLogger.log("Found extra MBS Pro song %s, deleting", extraMbsProSongName);
             MbsProSong mbsProSong = MapUtils.safeGet(songNameToMbsProSong, extraMbsProSongName);
             mMbsProSongFileManager.deleteMbsProSong(mbsProSong);
         }
 
-        Log.d(TAG, "Syncing common songs");
+        mLogger.log("Syncing common songs");
         Sets.SetView<String> commonSongNames = Sets.intersection(driveSongNames, mbsProSongNames);
         for (String songName : commonSongNames)
         {
-            Log.d(TAG, String.format("Found common song %s", songName));
+            mLogger.log("Found common song %s", songName);
             DriveSong driveSong = MapUtils.safeGet(songNameToDriveSong, songName);
             MbsProSong mbsProSong = MapUtils.safeGet(songNameToMbsProSong, songName);
 
@@ -93,7 +93,7 @@ public class SongSyncManager
             Sets.SetView<String> extraDriveFilenames = Sets.difference(driveFilenames, mbsProFilenames);
             for (String extraDriveFilename : extraDriveFilenames)
             {
-                Log.d(TAG, String.format("Found extra drive file %s, downloading", extraDriveFilename));
+                mLogger.log("Found extra drive file %s, downloading", extraDriveFilename);
                 mMbsProSongFileManager.downloadNewDriveFileToMbsProSongDirectory(
                         MapUtils.safeGet(driveFilenameToFile, extraDriveFilename), mbsProSong);
             }
@@ -101,7 +101,7 @@ public class SongSyncManager
             Sets.SetView<String> extraMbsProFilenames = Sets.difference(mbsProFilenames, driveFilenames);
             for (String extraMbsProFilename : extraMbsProFilenames)
             {
-                Log.d(TAG, String.format("Found extra MBS Pro file %s, deleting", extraMbsProFilename));
+                mLogger.log("Found extra MBS Pro file %s, deleting", extraMbsProFilename);
                 mMbsProSongFileManager.deleteMbsProFile(MapUtils.safeGet(mbsProFilenameToFile, extraMbsProFilename));
             }
 
@@ -112,17 +112,16 @@ public class SongSyncManager
                 DocumentFile mbsProFile = MapUtils.safeGet(mbsProFilenameToFile, commonFilename);
                 if (driveFile.getModifiedTime().getValue() > mbsProFile.lastModified())
                 {
-                    Log.d(TAG, String.format("Found common file %s that needs to be updated, updating",
-                            commonFilename));
+                    mLogger.log("Found common file %s that needs to be updated, updating", commonFilename);
                     mMbsProSongFileManager.updateMbsProFile(driveFile, mbsProFile);
                 }
             }
         }
 
-        Log.d(TAG, "Sync complete, inserting songs into MBS Pro DB");
+        mLogger.log("Sync complete, inserting songs into MBS Pro DB");
         mMbsProDatabaseManager.insertSongsIntoDb(mMbsProSongFinder.findSongsInDirectoryUri(mbsProDirectoryUri));
 
-        Log.d(TAG, "DB populating complete");
+        mLogger.log("DB populating complete");
     }
 
     private static Map<String, DriveSong> validateDriveSongsAndCreateMap(List<DriveSong> driveSongs)
