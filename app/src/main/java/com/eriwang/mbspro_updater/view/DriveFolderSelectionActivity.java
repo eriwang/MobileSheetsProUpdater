@@ -19,12 +19,12 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.eriwang.mbspro_updater.R;
 import com.eriwang.mbspro_updater.drive.DriveUtils;
 import com.eriwang.mbspro_updater.drive.DriveWrapper;
 import com.eriwang.mbspro_updater.utils.TaskUtils;
+import com.eriwang.mbspro_updater.utils.ToastUtils;
 import com.google.api.services.drive.model.File;
 
 import java.util.ArrayList;
@@ -170,7 +170,7 @@ public class DriveFolderSelectionActivity extends AppCompatActivity
         DriveFolder driveFolder = mCurrentTreeDriveFolders.get(mCurrentTreeDriveFolders.size() - 1);
         if (driveFolder == DriveFolder.ROOT)
         {
-            Toast.makeText(this, "Using root as Drive Folder is currently unsupported.", Toast.LENGTH_SHORT).show();
+            ToastUtils.showShortToast(this, "Using root as Drive Folder is currently unsupported.");
             return;
         }
 

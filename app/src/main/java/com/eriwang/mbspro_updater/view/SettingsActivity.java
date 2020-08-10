@@ -8,7 +8,6 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MenuItem;
-import android.widget.Toast;
 
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
@@ -20,6 +19,7 @@ import com.eriwang.mbspro_updater.R;
 import com.eriwang.mbspro_updater.mbspro.MbsProSongFileManager;
 import com.eriwang.mbspro_updater.sync.SongSyncJobService;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
+import com.eriwang.mbspro_updater.utils.ToastUtils;
 
 public class SettingsActivity extends AppCompatActivity
 {
@@ -128,9 +128,9 @@ public class SettingsActivity extends AppCompatActivity
             mbsProSongFileManager.setDirectoryUri(result.getData());
             if (mbsProSongFileManager.findMobileSheetsDbFile() == null)
             {
-                Toast.makeText(getContext(),
+                ToastUtils.showShortToast(getContext(),
                         "Did not find a mobilesheets.db file in the selected directory, make sure the correct " +
-                                "directory was selected.", Toast.LENGTH_SHORT).show();
+                                "directory was selected.");
                 return;
             }
 
@@ -167,9 +167,8 @@ public class SettingsActivity extends AppCompatActivity
         private void clearJobsAfterSettingChange()
         {
             JobScheduler jobScheduler = (JobScheduler) getContext().getSystemService(Context.JOB_SCHEDULER_SERVICE);
-            jobScheduler.cancel(SongSyncJobService.JOB_ID);
-            Toast.makeText(getContext(), "Setting changed, cancelling any scheduled sync jobs.", Toast.LENGTH_SHORT)
-                    .show();
+            jobScheduler.cancel(SongSyncJobService.PERIODIC_JOB_ID);
+            ToastUtils.showShortToast(getContext(), "Setting changed, cancelling any scheduled sync jobs.");
         }
 
         private Preference safeFindPreference(String key)

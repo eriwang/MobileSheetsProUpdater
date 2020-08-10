@@ -43,9 +43,10 @@ public class SongSyncManager
         mMbsProDatabaseManager = new MbsProDatabaseManager(context.getContentResolver());
     }
 
+    // TODO: after a device restart, I ran into a permission error with DocumentFile. I'm not sure how long the
+    //       open document tree permission is good for.
     public void syncMbsProWithDrive(String driveDirectoryId, Uri mbsProDirectoryUri) throws IOException
     {
-        // TODO: should be able to set both of these earlier in the object lifetime on an "initialization-like" step
         mMbsProSongFileManager.setDirectoryUri(mbsProDirectoryUri);
         mMbsProDatabaseManager.setDbUri(mMbsProSongFileManager.findMobileSheetsDbFile());
 

@@ -21,6 +21,7 @@ import com.eriwang.mbspro_updater.R;
 import com.eriwang.mbspro_updater.sync.SongSyncJobService;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.eriwang.mbspro_updater.utils.TaskUtils;
+import com.eriwang.mbspro_updater.utils.ToastUtils;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
@@ -62,7 +63,7 @@ public class MainActivity extends AppCompatActivity
 
         findViewById(R.id.stop_sync).setOnClickListener(view -> {
             JobScheduler jobScheduler = (JobScheduler) getSystemService(Context.JOB_SCHEDULER_SERVICE);
-            jobScheduler.cancel(SongSyncJobService.JOB_ID);
+            jobScheduler.cancel(SongSyncJobService.PERIODIC_JOB_ID);
         });
 
         findViewById(R.id.open_settings).setOnClickListener(view -> {
@@ -132,6 +133,9 @@ public class MainActivity extends AppCompatActivity
                 .addOnFailureListener(exception -> Log.e(TAG, "Unable to sign in.", exception));
     }
 
+    // I believe having multiple jobs running at the same time is actually safe (though that's assuming that
+    // concurrently writing to the same file isn't possible), as the final result of the two jobs shouldn't be
+    // different. That being said, it would be nice to clean this up and get rid of duplicate work at some point.
     private void startSyncJob(boolean isPeriodic)
     {
         // Something's wrong if the user has gotten far enough to start a sync job but the preferences aren't set.
@@ -146,8 +150,9 @@ public class MainActivity extends AppCompatActivity
         persistableBundle.putString(SongSyncJobService.MBS_PRO_DATA_DIR, mbsProDataDir);
         persistableBundle.putString(SongSyncJobService.DRIVE_FOLDER_ID, driveFolderId);
 
+        int jobId = (isPeriodic) ? SongSyncJobService.PERIODIC_JOB_ID : SongSyncJobService.FORCE_SYNC_JOB_ID;
         JobScheduler jobScheduler = (JobScheduler) getSystemService(Context.JOB_SCHEDULER_SERVICE);
-        JobInfo.Builder jobInfoBuilder = new JobInfo.Builder(SongSyncJobService.JOB_ID, new ComponentName(this, SongSyncJobService.class))
+        JobInfo.Builder jobInfoBuilder = new JobInfo.Builder(jobId, new ComponentName(this, SongSyncJobService.class))
                 .setExtras(persistableBundle)
                 .setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED);
 
