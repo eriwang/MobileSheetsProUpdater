@@ -16,11 +16,17 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.PersistableBundle;
 import android.util.Log;
+import android.widget.Switch;
+import android.widget.TextView;
 
 import com.eriwang.mbspro_updater.R;
+import com.eriwang.mbspro_updater.drive.DriveWrapper;
 import com.eriwang.mbspro_updater.sync.SongSyncJobService;
+import com.eriwang.mbspro_updater.sync.SongSyncJobServiceLogger;
+import com.eriwang.mbspro_updater.utils.JobSchedulerUtils;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.eriwang.mbspro_updater.utils.TaskUtils;
+import com.eriwang.mbspro_updater.utils.ToastUtils;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
@@ -29,6 +35,7 @@ import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccoun
 import com.google.api.services.drive.DriveScopes;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -55,14 +62,37 @@ public class MainActivity extends AppCompatActivity
 
         mExecutor = Executors.newSingleThreadExecutor();
 
-        // TODO: feedback of some sort, e.g. toasts
-        findViewById(R.id.force_sync_now).setOnClickListener(view -> startSyncJob(false));
+        TaskUtils.execute(mExecutor, () -> {
+            StringBuilder fullLogText = new StringBuilder();
+            List<String> lastJobLogLines = SongSyncJobServiceLogger.readAppFileLog(this);
+            for (String logLine : lastJobLogLines)
+            {
+                fullLogText.append(logLine);
+                fullLogText.append('\n');
+            }
+            ((TextView) findViewById(R.id.update_log_view)).setText(fullLogText);
+        });
 
-        findViewById(R.id.schedule_sync_in_background).setOnClickListener(view -> startSyncJob(true));
+        findViewById(R.id.force_sync_now).setOnClickListener(view -> {
+            ToastUtils.showShortToast(this, "Starting sync job now.");
+            startSyncJob(false);
+        });
 
-        findViewById(R.id.stop_sync).setOnClickListener(view -> {
-            JobScheduler jobScheduler = (JobScheduler) getSystemService(Context.JOB_SCHEDULER_SERVICE);
-            jobScheduler.cancel(SongSyncJobService.JOB_ID);
+        // Note that this will not change if the app is already open, the sync job fails, and the job gets cancelled.
+        Switch toggleSyncSwitch = findViewById(R.id.toggle_sync);
+        toggleSyncSwitch.setChecked(JobSchedulerUtils.isJobScheduled(this, SongSyncJobService.PERIODIC_JOB_ID));
+        toggleSyncSwitch.setOnCheckedChangeListener((compoundButton, isChecked) -> {
+            if (isChecked)
+            {
+                ToastUtils.showShortToast(this, "Starting sync job to run in background. Will start in 15 minutes.");
+                startSyncJob(true);
+            }
+            else
+            {
+                ToastUtils.showShortToast(this, "Cancelled sync job.");
+                ((JobScheduler) getSystemService(Context.JOB_SCHEDULER_SERVICE))
+                        .cancel(SongSyncJobService.PERIODIC_JOB_ID);
+            }
         });
 
         findViewById(R.id.open_settings).setOnClickListener(view -> {
@@ -83,6 +113,15 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
+    protected void onResume()
+    {
+        ((Switch) findViewById(R.id.toggle_sync))
+                .setChecked(JobSchedulerUtils.isJobScheduled(this, SongSyncJobService.PERIODIC_JOB_ID));
+
+        super.onResume();
+    }
+
+    @Override
     public void onActivityResult(int requestCode, int resultCode, Intent result)
     {
         switch (requestCode)
@@ -100,7 +139,7 @@ public class MainActivity extends AppCompatActivity
 
     private void requestSignIn()
     {
-        Log.d(TAG, "Requesting sign-in");
+        Log.i(TAG, "Requesting sign-in");
 
         GoogleSignInOptions signInOptions =
                 new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -114,24 +153,35 @@ public class MainActivity extends AppCompatActivity
 
     private void handleSignInResult(int resultCode, Intent result)
     {
-        // TODO: actual error handling
         if (resultCode != Activity.RESULT_OK || result == null)
         {
+            ToastUtils.showShortToast(this, "Login failed. ResultCode=%d, result=%s", resultCode, result.toString());
             return;
         }
 
         GoogleSignIn.getSignedInAccountFromIntent(result)
                 .onSuccessTask(googleSignInAccount -> TaskUtils.execute(mExecutor, () -> {
                     ProdAssert.notNull(googleSignInAccount);
-                    Log.d(TAG, "Signed in as " + googleSignInAccount.getEmail());
+                    Log.i(TAG, "Signed in as " + googleSignInAccount.getEmail());
 
                     GoogleAccountCredential credential = GoogleAccountCredential.usingOAuth2(
-                            this, Collections.singletonList(DriveScopes.DRIVE));
+                            this, Collections.singletonList(DriveScopes.DRIVE_READONLY));
                     credential.setSelectedAccount(googleSignInAccount.getAccount());
+
+                    // Sanity test that Drive credentials actually worked. If this fails, it'll throw an exception.
+                    DriveWrapper drive = new DriveWrapper();
+                    drive.setCredentialFromContextAndInitialize(this);
+                    drive.listDirectory("root");
                 }))
-                .addOnFailureListener(exception -> Log.e(TAG, "Unable to sign in.", exception));
+                .addOnFailureListener(exception -> {
+                    ToastUtils.showShortToast(this, "Sign in failed. ");
+                    Log.e(TAG, "Unable to sign in.", exception);
+                });
     }
 
+    // I believe having multiple jobs running at the same time is actually safe (though that's assuming that
+    // concurrently writing to the same file isn't possible), as the final result of the two jobs shouldn't be
+    // different. That being said, it would be nice to clean this up and get rid of duplicate work at some point.
     private void startSyncJob(boolean isPeriodic)
     {
         // Something's wrong if the user has gotten far enough to start a sync job but the preferences aren't set.
@@ -146,8 +196,9 @@ public class MainActivity extends AppCompatActivity
         persistableBundle.putString(SongSyncJobService.MBS_PRO_DATA_DIR, mbsProDataDir);
         persistableBundle.putString(SongSyncJobService.DRIVE_FOLDER_ID, driveFolderId);
 
+        int jobId = (isPeriodic) ? SongSyncJobService.PERIODIC_JOB_ID : SongSyncJobService.FORCE_SYNC_JOB_ID;
         JobScheduler jobScheduler = (JobScheduler) getSystemService(Context.JOB_SCHEDULER_SERVICE);
-        JobInfo.Builder jobInfoBuilder = new JobInfo.Builder(SongSyncJobService.JOB_ID, new ComponentName(this, SongSyncJobService.class))
+        JobInfo.Builder jobInfoBuilder = new JobInfo.Builder(jobId, new ComponentName(this, SongSyncJobService.class))
                 .setExtras(persistableBundle)
                 .setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED);
 

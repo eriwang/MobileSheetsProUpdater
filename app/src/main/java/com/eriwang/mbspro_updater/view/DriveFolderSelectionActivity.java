@@ -19,12 +19,12 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.eriwang.mbspro_updater.R;
 import com.eriwang.mbspro_updater.drive.DriveUtils;
 import com.eriwang.mbspro_updater.drive.DriveWrapper;
 import com.eriwang.mbspro_updater.utils.TaskUtils;
+import com.eriwang.mbspro_updater.utils.ToastUtils;
 import com.google.api.services.drive.model.File;
 
 import java.util.ArrayList;
@@ -85,7 +85,6 @@ public class DriveFolderSelectionActivity extends AppCompatActivity
             }
 
             DriveFolder driveFolder = (DriveFolder) listView.getItemAtPosition(position);
-            Log.d(TAG, String.format("Clicked %s:%s", driveFolder.mName, driveFolder.mId));
 
             DriveFolder targetDriveFolder;
             if (driveFolder == DriveFolder.UP_ONE_LEVEL)
@@ -170,7 +169,7 @@ public class DriveFolderSelectionActivity extends AppCompatActivity
         DriveFolder driveFolder = mCurrentTreeDriveFolders.get(mCurrentTreeDriveFolders.size() - 1);
         if (driveFolder == DriveFolder.ROOT)
         {
-            Toast.makeText(this, "Using root as Drive Folder is currently unsupported.", Toast.LENGTH_SHORT).show();
+            ToastUtils.showShortToast(this, "Using root as Drive Folder is currently unsupported.");
             return;
         }
 
@@ -213,7 +212,7 @@ class DriveFolderViewAdapter extends ArrayAdapter<DriveFolder>
 {
     public DriveFolderViewAdapter(Context context, List<DriveFolder> values)
     {
-        super(context, R.layout.drive_folder_selection_folder, R.id.drive_folder_name, values);
+        super(context, R.layout.view_drive_folder_selection_folder, R.id.drive_folder_name, values);
     }
 
     @NonNull
@@ -223,7 +222,7 @@ class DriveFolderViewAdapter extends ArrayAdapter<DriveFolder>
         DriveFolder driveFolder = getItem(position);
         if (convertView == null)
         {
-            convertView = LayoutInflater.from(getContext()).inflate(R.layout.drive_folder_selection_folder, parent,
+            convertView = LayoutInflater.from(getContext()).inflate(R.layout.view_drive_folder_selection_folder, parent,
                     false);
         }
 

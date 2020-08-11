@@ -13,10 +13,11 @@
             android:roundIcon="@mipmap/ic_launcher_round"
             android:supportsRtl="true"
             android:theme="@style/AppTheme">
+
         <activity
                 android:name=".view.DriveFolderSelectionActivity"
                 android:label="@string/title_activity_drive_folder_selection"
-                android:theme="@style/AppTheme.NoActionBar"></activity>
+                android:theme="@style/AppTheme.NoActionBar" />
         <activity
                 android:name=".view.SettingsActivity"
                 android:label="@string/title_activity_settings" />

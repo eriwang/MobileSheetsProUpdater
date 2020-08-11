@@ -6,9 +6,11 @@ import android.database.sqlite.SQLiteDatabase;
 import android.graphics.pdf.PdfRenderer;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
+import android.util.Log;
 
 import androidx.documentfile.provider.DocumentFile;
 
+import com.eriwang.mbspro_updater.sync.SongSyncJobServiceLogger;
 import com.eriwang.mbspro_updater.utils.ProdAssert;
 import com.eriwang.mbspro_updater.utils.StreamUtils;
 
@@ -18,16 +20,19 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.List;
 
 public class MbsProDatabaseManager
 {
     private final ContentResolver mContentResolver;
     private Uri mDbUri;
+    private final SongSyncJobServiceLogger mLogger;
 
-    public MbsProDatabaseManager(ContentResolver contentResolver)
+    public MbsProDatabaseManager(ContentResolver contentResolver, SongSyncJobServiceLogger logger)
     {
         mContentResolver = contentResolver;
+        mLogger = logger;
     }
 
     public void setDbUri(Uri dbUri)
@@ -54,8 +59,8 @@ public class MbsProDatabaseManager
             long songId = db.insert("Songs", null, songValues);
             ProdAssert.prodAssert(songId != -1, "Insertion for song %s failed", mbsProSong.mName);
 
-            // TODO: ordering of pdfs is done by the actual ID of the entries in the database. I'd like to have a
-            //  sane ordering (for example to start parts alpha order, score last)
+            sortPartPdfs(mbsProSong.mPdfFiles);
+
             int currentPageCount = 0;
             for (DocumentFile pdf : mbsProSong.mPdfFiles)
             {
@@ -140,11 +145,41 @@ public class MbsProDatabaseManager
         newDbFileInputStream.close();
     }
 
+    // Ordering of pdfs is done by the actual ID of the entries in the database. For now, parts are in alpha order,
+    // but score (and other unknown formats) are placed at the end.
+    private void sortPartPdfs(List<DocumentFile> partPdfs)
+    {
+        Collections.sort(partPdfs, (lhs, rhs) -> {
+            String lhsFilename = lhs.getName();
+            String rhsFilename = rhs.getName();
+            ProdAssert.notNull(lhsFilename);
+            ProdAssert.notNull(rhsFilename);
+
+            String lhsPartName = getPartName(lhsFilename);
+            String rhsPartName = getPartName(rhsFilename);
+            if ((rhsPartName == null) && (lhsPartName == null))
+            {
+                return lhsFilename.compareTo(rhsFilename);
+            }
+            if (lhsPartName == null)
+            {
+                return 1;  // rhs comes first
+            }
+            if (rhsPartName == null)
+            {
+                return -1; // lhs comes first
+            }
+            return lhsPartName.compareTo(rhsPartName);
+        });
+    }
+
     // Putting this here is for convenience, keeping the audio/ pdfs as DocumentFiles simplifies some other code, and
     // there isn't a big downside to putting it here instead besides that it's a bit weird. That being said this is
     // probably a smell that should get cleaned up at some point.
     private int getPdfNumPages(DocumentFile pdfFile) throws IOException
     {
+        mLogger.log("Opening %s", pdfFile.getName());
+
         InputStream pdfInputStream = mContentResolver.openInputStream(pdfFile.getUri());
         ProdAssert.notNull(pdfInputStream);
 

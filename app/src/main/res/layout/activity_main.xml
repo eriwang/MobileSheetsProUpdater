@@ -11,30 +11,47 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
-        <Button
+        <com.eriwang.mbspro_updater.view.ClickableRowView
                 android:id="@+id/force_sync_now"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/force_sync_now_btn_text"/>
+                app:text="@string/click_row_text_force_sync"
+                app:subtext="@string/click_row_subtext_force_sync"/>
 
-        <Button
-                android:id="@+id/schedule_sync_in_background"
-                android:layout_width="wrap_content"
+        <Switch
+                android:id="@+id/toggle_sync"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/sync_in_background_btn_text"/>
+                android:padding="16dp"
+                android:text="@string/switch_toggle_background_sync"/>
 
-        <Button
-                android:id="@+id/stop_sync"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/stop_background_sync_btn_text"/>
-
-        <Button
+        <com.eriwang.mbspro_updater.view.ClickableRowView
                 android:id="@+id/open_settings"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Open Settings"/>
+                app:text="@string/click_row_text_settings"
+                app:subtext="@string/click_row_subtext_settings"/>
 
+        <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/header_most_recent_job_output"
+                android:textColor="@android:color/primary_text_light"
+                android:layout_margin="16dp"/>
+
+        <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+            <TextView
+                    android:id="@+id/update_log_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:typeface="monospace"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"/>
+
+        </ScrollView>
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
