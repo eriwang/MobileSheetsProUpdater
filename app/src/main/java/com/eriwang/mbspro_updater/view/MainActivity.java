@@ -20,6 +20,7 @@ import android.widget.Switch;
 import android.widget.TextView;
 
 import com.eriwang.mbspro_updater.R;
+import com.eriwang.mbspro_updater.drive.DriveWrapper;
 import com.eriwang.mbspro_updater.sync.SongSyncJobService;
 import com.eriwang.mbspro_updater.sync.SongSyncJobServiceLogger;
 import com.eriwang.mbspro_updater.utils.JobSchedulerUtils;
@@ -78,7 +79,6 @@ public class MainActivity extends AppCompatActivity
         });
 
         // Note that this will not change if the app is already open, the sync job fails, and the job gets cancelled.
-        // That said,
         Switch toggleSyncSwitch = findViewById(R.id.toggle_sync);
         toggleSyncSwitch.setChecked(JobSchedulerUtils.isJobScheduled(this, SongSyncJobService.PERIODIC_JOB_ID));
         toggleSyncSwitch.setOnCheckedChangeListener((compoundButton, isChecked) -> {
@@ -139,7 +139,7 @@ public class MainActivity extends AppCompatActivity
 
     private void requestSignIn()
     {
-        Log.d(TAG, "Requesting sign-in");
+        Log.i(TAG, "Requesting sign-in");
 
         GoogleSignInOptions signInOptions =
                 new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -153,22 +153,30 @@ public class MainActivity extends AppCompatActivity
 
     private void handleSignInResult(int resultCode, Intent result)
     {
-        // TODO: actual error handling
         if (resultCode != Activity.RESULT_OK || result == null)
         {
+            ToastUtils.showShortToast(this, "Login failed. ResultCode=%d, result=%s", resultCode, result.toString());
             return;
         }
 
         GoogleSignIn.getSignedInAccountFromIntent(result)
                 .onSuccessTask(googleSignInAccount -> TaskUtils.execute(mExecutor, () -> {
                     ProdAssert.notNull(googleSignInAccount);
-                    Log.d(TAG, "Signed in as " + googleSignInAccount.getEmail());
+                    Log.i(TAG, "Signed in as " + googleSignInAccount.getEmail());
 
                     GoogleAccountCredential credential = GoogleAccountCredential.usingOAuth2(
-                            this, Collections.singletonList(DriveScopes.DRIVE));
+                            this, Collections.singletonList(DriveScopes.DRIVE_READONLY));
                     credential.setSelectedAccount(googleSignInAccount.getAccount());
+
+                    // Sanity test that Drive credentials actually worked. If this fails, it'll throw an exception.
+                    DriveWrapper drive = new DriveWrapper();
+                    drive.setCredentialFromContextAndInitialize(this);
+                    drive.listDirectory("root");
                 }))
-                .addOnFailureListener(exception -> Log.e(TAG, "Unable to sign in.", exception));
+                .addOnFailureListener(exception -> {
+                    ToastUtils.showShortToast(this, "Sign in failed. ");
+                    Log.e(TAG, "Unable to sign in.", exception);
+                });
     }
 
     // I believe having multiple jobs running at the same time is actually safe (though that's assuming that

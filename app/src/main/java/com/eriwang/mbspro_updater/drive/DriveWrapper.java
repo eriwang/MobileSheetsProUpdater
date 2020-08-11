@@ -33,7 +33,7 @@ public class DriveWrapper
         GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(context);
         ProdAssert.notNull(account);
         GoogleAccountCredential credential = GoogleAccountCredential
-                .usingOAuth2(context, Collections.singletonList(DriveScopes.DRIVE))
+                .usingOAuth2(context, Collections.singletonList(DriveScopes.DRIVE_READONLY))
                 .setSelectedAccount(account.getAccount());
 
         mDrive = new Drive.Builder(AndroidHttp.newCompatibleTransport(), new GsonFactory(), credential)

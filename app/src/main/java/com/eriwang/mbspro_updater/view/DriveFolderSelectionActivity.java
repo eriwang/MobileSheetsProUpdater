@@ -85,7 +85,6 @@ public class DriveFolderSelectionActivity extends AppCompatActivity
             }
 
             DriveFolder driveFolder = (DriveFolder) listView.getItemAtPosition(position);
-            Log.d(TAG, String.format("Clicked %s:%s", driveFolder.mName, driveFolder.mId));
 
             DriveFolder targetDriveFolder;
             if (driveFolder == DriveFolder.UP_ONE_LEVEL)
